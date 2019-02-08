@@ -1,5 +1,5 @@
 from . import computing
 
-from . import interface
+from . import interface_module
 
-from . import affine
+from .affine_module import Affine
