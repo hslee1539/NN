@@ -2,7 +2,7 @@ class Backwardable:
     def backward(self, dx):
         pass
 
-    def backward_line(self):
+    def backward_line(self,dx):
         pass
 
 class Forwardable:
@@ -23,7 +23,7 @@ class Forwardable:
             위 인수의 원칙으로 결과물이 중간에 바뀌는 일은 없습니다.
             """
         pass
-    def forward_line(self):
+    def forward_line(self, x):
         """summary
             고속 학습을 위한 forward를 구현합니다.
             design
