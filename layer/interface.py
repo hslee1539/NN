@@ -1,3 +1,9 @@
+class Backwardable:
+    def backward(self, dx):
+        pass
+
+    def backward_line(self):
+        pass
 
 class Forwardable:
     """summary
@@ -17,17 +23,19 @@ class Forwardable:
             위 인수의 원칙으로 결과물이 중간에 바뀌는 일은 없습니다.
             """
         pass
-    def forward_line(self, x):
+    def forward_line(self):
         """summary
             고속 학습을 위한 forward를 구현합니다.
             design
             내부 변수를 초기화 할 필요가 없는 점을 이용하여 고속으로 계산하게 끔 구현합니다.
-            params x
-            앞 레이어의 결과물입니다.
-            이 인수를 수정 없이 읽기만 하는것을 원칙으로 합니다.
-            return
-            결과물을 반환합니다.
-            위 인수의 원칙으로 결과물이 중간에 바뀌는 일은 없습니다.
             """
         pass
     
+class Initable:
+    def init(self):
+        pass
+
+class Updatable:
+    def update(self, optimizer):
+        pass
+
