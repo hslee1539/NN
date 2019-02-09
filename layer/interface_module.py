@@ -39,3 +39,11 @@ class Updatable:
     def update(self, optimizer):
         pass
 
+class Learnable:
+    def learn(self, t):
+        pass
+
+    def learn_line(self, t):
+        pass
+
+
