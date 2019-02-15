@@ -1,14 +1,16 @@
 import sys
-sys.path.append(__file__.replace("NN/layer/computing/test.py", ""))
+sys.path.append(__file__.replace("NN\\layer\\computing\\test_module.py", ""))
 
 import tensor
-import affine
+import affine_module as affine
+import batchnormalization_module as norm
+import math
 
 def isSame(x,y):
-    #print(str(x) + ', ' + str(y))
+    print(str(x) + ', ' + str(y))
     return x == y
 
-def forward(x_shape, w_shape):
+def affine_forward(x_shape, w_shape):
     x = tensor.create_gauss(x_shape)
     w = tensor.create_gauss(w_shape)
     b = tensor.create_gauss([w_shape[-1]])
@@ -24,7 +26,7 @@ def forward(x_shape, w_shape):
 
     print(compare_out)
 
-def backward(x_shape, w_shape):
+def affine_backward(x_shape, w_shape):
     """backward에서 뒷쪽 노드에 보내줄 dout을 테스트합니다."""
     x = tensor.create_gauss(x_shape)
     w = tensor.create_gauss(w_shape)
@@ -46,7 +48,7 @@ def backward(x_shape, w_shape):
 
     print(compare_out)
 
-def backward_variables(x_shape, w_shape):
+def affine_backward_variables(x_shape, w_shape):
     """backward에서 업데이트를 위한 변수들의 미분값 테스트입니다."""
     x = tensor.create_gauss(x_shape)
     w = tensor.create_gauss(w_shape)
@@ -74,4 +76,101 @@ def backward_variables(x_shape, w_shape):
 
     print(compare_dw)
     print(compare_db)
+
+def batch_nrom_forward(x_shape):
+    def process_no_zero(x):
+        return x + 10e-7
+    x = tensor.create_randomly(x_shape, -3,4)
+    #x = tensor.Tensor([1.,2.,3.,5.],[1,4])
+    mean = tensor.create_sum(x, 0)
+    deviation = tensor.create_element_wise_product(x,mean)
+    jegop = tensor.create_element_wise_product(deviation, deviation)
+    dispersion = tensor.create_sum(jegop, 0)
+    dispersion2 = dispersion.copy()
+    std = dispersion.copy()
     
+    forward_out = x.copy()
+    forward_new_out = x.copy()
+    compare_out = x.copy()
+
+    print(x)
+    #잘 알려진 방법
+    tensor.mean_axis(x, 0, mean)
+    print(mean)
+    tensor.sub(x, mean, deviation)
+    tensor.mul(deviation, deviation, jegop)
+    tensor.mean_axis(jegop, 0, dispersion)
+    tensor.function(dispersion, process_no_zero, dispersion)
+    tensor.function(dispersion, math.sqrt, dispersion)
+    tensor.div(deviation, dispersion, forward_out)
+
+    #새로운 방법
+    norm.forward(x.array, x.shape, dispersion2.array, forward_new_out.array)
+
+    tensor.function_element_wise(forward_out, forward_new_out, isSame, compare_out)
+
+    print(compare_out)
+    
+    pass
+    
+def test_norm_backward(x_shape, h = 0.001):
+    def process_no_zero(x):
+        return x + 10e-7
+    x = tensor.create_randomly(x_shape, -3,4)
+    #x = tensor.Tensor([1.,2.,3.,5.],[1,4])
+    mean = tensor.create_sum(x, 0)
+    d_mean = mean.copy()
+    d_mean2 = mean.copy()
+    deviation = tensor.create_element_wise_product(x,mean)
+    jegop = tensor.create_element_wise_product(deviation, deviation)
+    dispersion = tensor.create_sum(jegop, 0)
+    dispersion2 = dispersion.copy()
+    d_dispersion = dispersion.copy()
+    d_deviation = deviation.copy()
+
+    batch_size = tensor.Tensor([x_shape[0]], [1])
+
+    tmp_x = x.copy()
+    
+    forward_out = x.copy()
+    forward_new_out = x.copy()
+    backward_out = x.copy()
+    backward_new_out = x.copy()
+    compare_out = x.copy()
+    dx = tensor.create_ones(x.shape)
+
+    print(x)
+    #잘 알려진 방법
+    #forward
+    tensor.mean_axis(x, 0, mean)
+    print(mean)
+    tensor.sub(x, mean, deviation)
+    tensor.mul(deviation, deviation, jegop)
+    tensor.mean_axis(jegop, 0, dispersion)
+    tensor.function(dispersion, process_no_zero, dispersion)
+    tensor.function(dispersion, math.sqrt, dispersion)
+    tensor.div(deviation, dispersion, forward_out)
+    #backward
+    tensor.div(dx, dispersion, d_deviation)
+    tensor.mul(d_deviation, deviation, tmp_x)
+    tensor.div(tmp_x, dispersion, tmp_x)
+    tensor.div(tmp_x, dispersion, tmp_x)
+    tensor.sum_axis(tmp_x, 0, d_dispersion) #
+    tensor.div(deviation, dispersion, tmp_x)
+    tensor.mul(tmp_x, d_dispersion, tmp_x)
+    tensor.div(tmp_x, batch_size, tmp_x)
+    tensor.sum_axis(tmp_x, 0, d_mean)
+    tensor.div(d_mean, batch_size, d_mean)
+    tensor.sub(d_deviation, d_mean, backward_out)
+
+    print('d_mean :' + str(d_mean))
+    
+    #새로운 방법
+    norm.forward(x.array, x.shape, dispersion2.array, forward_new_out.array)
+    backward_new_out = forward_new_out.copy()
+    norm.backward(dx.array, dispersion2.array, d_mean,backward_new_out.array)
+    print('d_mean2 :' + str(d_mean2))
+    
+    tensor.function_element_wise(backward_out, backward_new_out, isSame, compare_out)
+
+    print(compare_out)
