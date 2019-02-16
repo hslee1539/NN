@@ -14,7 +14,7 @@ class Batchnormalization(interface_module.Forwardable, interface_module.Backward
         return self.forward_line(self, x)
 
     def forward_line(self, x):
-        computing.forward(x.array, x.shape, self.dispersion.array self.out.array)
+        computing.forward(x.array, x.shape, self.dispersion.array, self.out.array)
         return self.out
 
     def backward(self, dx):
