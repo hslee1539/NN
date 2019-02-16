@@ -7,8 +7,7 @@ import batchnormalization_module as norm
 import math
 
 def isSame(x,y):
-    print(str(x) + ', ' + str(y))
-    return x == y
+    return x - y
 
 def affine_forward(x_shape, w_shape):
     x = tensor.create_gauss(x_shape)
@@ -123,7 +122,9 @@ def test_norm_backward(x_shape, h = 0.001):
     d_mean2 = mean.copy()
     deviation = tensor.create_element_wise_product(x,mean)
     jegop = tensor.create_element_wise_product(deviation, deviation)
+    print(jegop.shape)
     dispersion = tensor.create_sum(jegop, 0)
+    print(dispersion.shape)
     dispersion2 = dispersion.copy()
     d_dispersion = dispersion.copy()
     d_deviation = deviation.copy()
@@ -137,7 +138,8 @@ def test_norm_backward(x_shape, h = 0.001):
     backward_out = x.copy()
     backward_new_out = x.copy()
     compare_out = x.copy()
-    dx = tensor.create_ones(x.shape)
+    #dx = tensor.create_ones(x.shape)
+    dx = tensor.create_randomly(x.shape)
 
     print(x)
     #잘 알려진 방법
@@ -152,25 +154,36 @@ def test_norm_backward(x_shape, h = 0.001):
     tensor.div(deviation, dispersion, forward_out)
     #backward
     tensor.div(dx, dispersion, d_deviation)
-    tensor.mul(d_deviation, deviation, tmp_x)
+    tensor.mul(dx, deviation, tmp_x)
     tensor.div(tmp_x, dispersion, tmp_x)
+    tensor.sum_axis(tmp_x, 0, d_dispersion)
     tensor.div(tmp_x, dispersion, tmp_x)
     tensor.sum_axis(tmp_x, 0, d_dispersion) #
+    def mul_minus(x):
+        return -x
+    tensor.function(d_dispersion, mul_minus, d_dispersion)
+    
     tensor.div(deviation, dispersion, tmp_x)
     tensor.mul(tmp_x, d_dispersion, tmp_x)
     tensor.div(tmp_x, batch_size, tmp_x)
-    tensor.sum_axis(tmp_x, 0, d_mean)
+    tensor.add(tmp_x, d_deviation, d_deviation)
+    tensor.sum_axis(d_deviation, 0, d_mean)
     tensor.div(d_mean, batch_size, d_mean)
     tensor.sub(d_deviation, d_mean, backward_out)
 
-    print('d_mean :' + str(d_mean))
     
     #새로운 방법
     norm.forward(x.array, x.shape, dispersion2.array, forward_new_out.array)
     backward_new_out = forward_new_out.copy()
-    norm.backward(dx.array, dispersion2.array, d_mean,backward_new_out.array)
-    print('d_mean2 :' + str(d_mean2))
+    norm.backward(dx.array, dispersion2.array, backward_new_out.array)
     
     tensor.function_element_wise(backward_out, backward_new_out, isSame, compare_out)
-
+    print('back = ')
     print(compare_out)
+    tensor.function_element_wise(forward_out, forward_new_out, isSame, compare_out)
+    print('forward = ')
+    print(compare_out)
+    dispersion_compare = dispersion.copy()
+    tensor.function_element_wise(dispersion, dispersion2, isSame, dispersion_compare)
+    print('dispersion = ')
+    print(dispersion_compare)

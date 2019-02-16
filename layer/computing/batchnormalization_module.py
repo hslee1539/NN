@@ -49,13 +49,13 @@ def backward(dx_array, dispersion_array, out_array):
         tmp1 = 0
         for i in range(N):
             tmp1 += out_array[i * D + data_index] * dx_array[i * D + data_index]
-
+        
         #tmp2 계산
         tmp2 = 0
         for i in range(N):
             tmp2 += tmp1 * out_array[i * D + data_index] / N - dx_array[i * D + data_index]
         tmp2 /= N
-
+        
         #최종 역전파 계산 (forward값 손실)
         for i in range(N):
             out_array[i * D + data_index] = tmp2 - tmp1 * out_array[i * D + data_index] / N + dx_array[i * D + data_index]
