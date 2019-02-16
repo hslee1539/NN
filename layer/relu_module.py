@@ -10,16 +10,16 @@ class Relu(interface_module.Forwardable, interface_module.Backwardable):
         if(self.out.shape[-2] != x.shape[-2]):
             self.out = x.copy()
 
-        return self.forward_line(self, x)
+        return self.forward_line(x)
 
     def forward_line(self, x):
-        computing.forward(x, self.out)
+        computing.forward(x.array, self.out.array)
         return self.out
 
     def backward(self, dx):
         return self.backward_line(dx)
 
     def backward_line(self, dx):
-        computing.backward(dx, self.out)
+        computing.backward(dx.array, self.out.array)
         return self.out
     
