@@ -2,6 +2,7 @@ from .computing import affine_module as computing
 from . import interface_module
 import tensor
 
+
 class Affine(interface_module.Forwardable, interface_module.Backwardable, interface_module.Updatable):
     def __init__(self, w, b):
         self.w = w
@@ -11,7 +12,8 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         self.dout = None
 
         self.dw = w.copy()
-        self.b = b.copy()
+        self.db = b.copy()
+        
 
     def forward(self, x):
         if(self.out.shape[-2] != x.shape[-2]):
@@ -25,7 +27,7 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         return self.out
 
     def backward(self, dx):
-        if(self.out.shape[-2] != x.shape[-2]):
+        if(self.out.shape[-2] != dx.shape[-2]):
             self.dout = self.x.copy()
         
         return self.backward_line(dx)
