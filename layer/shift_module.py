@@ -1,4 +1,4 @@
-from .computing import shift_module as compution
+from .computing import shift_module as computing
 from . import interface_module
 from ..optimizer.interface_module import Base as Optimizer
 import tensor
