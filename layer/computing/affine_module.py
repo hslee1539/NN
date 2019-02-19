@@ -16,7 +16,7 @@ def forward(x_array, w_array, b_array, out):
     
     w_col = len(b_array)
     w_row = w_size // w_col
-    x_row = x_size // w_row
+    #x_row = x_size // w_row
     
     for index in range(len(out)):
         pass_x_index = index // w_col * w_row
@@ -42,7 +42,7 @@ def backward(dx_array, w_array, w_shape, out):
     return None
 
 def backward_variables(x_array, dx_array, dw_array, db_array):
-    x_size = len(x_array)
+    #x_size = len(x_array)
     dx_size = len(dx_array)
     dw_size = len(dw_array)
     db_size = len(db_array)

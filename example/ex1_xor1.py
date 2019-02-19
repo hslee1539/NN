@@ -1,6 +1,5 @@
 import sys
 sys.path.append(__file__.replace('\\NN\\example\\ex1_xor1.py',''))
-print(sys.path)
 
 import NN as nn
 import tensor
