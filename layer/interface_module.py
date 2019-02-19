@@ -1,49 +1,45 @@
+
 class Backwardable:
+    """역전파 인터페이스입니다."""
     def backward(self, dx):
-        pass
+        raise NotImplementedError
 
     def backward_line(self,dx):
-        pass
+        raise NotImplementedError
+
+class BackwardStartable:
+    """역전파를 시작하는 인터페이스입니다."""
+    def startBackward(self, t):
+        raise NotImplementedError
+    
+    def startBackward_line(self, t):
+        raise NotImplementedError
+
+class ForwardStartable:
+    """순전파를 시작하는 인터페이스입니다."""
+    def startForward(self, x):
+        raise NotImplementedError
+    def startForward_line(self, x):
+        raise NotImplementedError
 
 class Forwardable:
-    """summary
-        순전파를 할 수 있는 레이어입니다.
-        """
+    """순전파 인터페이스입니다."""
     def forward(self, x):
-        """summary
-            학습을 위한 forward를 구현합니다.
-            design
-            순전파를 처음할 때 사용되고, x의 shape에 대한 내부 변수 초기화를 여기서 합니다.
-            그 다음에 x의 shape이 같다면 forward_line함수로 변수 초기화 없이 고속으로 하게 구현합니다.
-            params x
-            앞 레이어의 결과물입니다
-            이 인수를 수정 없이 읽기만 하는것을 원칙으로 합니다.
-            return
-            결과물을 반환합니다.
-            위 인수의 원칙으로 결과물이 중간에 바뀌는 일은 없습니다.
-            """
-        pass
+        raise NotImplementedError
+
     def forward_line(self, x):
-        """summary
-            고속 학습을 위한 forward를 구현합니다.
-            design
-            내부 변수를 초기화 할 필요가 없는 점을 이용하여 고속으로 계산하게 끔 구현합니다.
-            """
-        pass
+        raise NotImplementedError
     
 class Initable:
     def init(self):
-        pass
+        raise NotImplementedError
 
 class Updatable:
     def update(self, optimizer):
-        pass
+        raise NotImplementedError
 
 class Learnable:
     def learn(self, t):
-        pass
-
-    def learn_line(self, t):
-        pass
+        raise NotImplementedError
 
 

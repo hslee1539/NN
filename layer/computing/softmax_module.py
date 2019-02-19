@@ -47,7 +47,7 @@ def backward(dx_array, dx_shape, out_array):
             
     return None
 
-def learn(t_array, out_array):
+def startBackward(t_array, out_array):
     """softmax의 순전파 결과를 역전파 결과로 연산합니다.
         table을 가지고 cross entropy로 역전파를 시작합니다.
         params t_array

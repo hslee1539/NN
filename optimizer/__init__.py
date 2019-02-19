@@ -1,2 +1,2 @@
 from . import interface_module
-from . import SGD_module
+from .SGD_module import SGD

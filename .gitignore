@@ -104,3 +104,4 @@ venv.bak/
 .mypy_cache/
 layer/computing/정규화 미분과정.pptx
 .vscode/launch.json
+.vscode/

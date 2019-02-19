@@ -1,7 +1,7 @@
 from .layer import interface_module
 import tensor
 
-class Network(interface_module.Forwardable, interface_module.Backwardable, interface_module.Learnable, interface_module.Updatable):
+class Network(interface_module.Forwardable, interface_module.Backwardable, interface_module.ForwardStartable, interface_module.BackwardStartable, interface_module.Updatable):
     def __init__(self):
 
         # 사용된 모든 레이어
@@ -12,10 +12,9 @@ class Network(interface_module.Forwardable, interface_module.Backwardable, inter
         self.forwardable_layers = []
         # 역전파를 하는 레이어들(순서 중요)
         self.backwardable_layers = []
-        # 테이블을 가지고 역전파를 할 수 있는 레이어들
-        self.learnable_layers = []
+
         # 테이블을 가지고 역전파를 할 레이어
-        self.learnable_layer = None
+        self.backwardStartable_layer = None
 
     def append(self, layer):
         self.layers.append(layer)
@@ -23,19 +22,16 @@ class Network(interface_module.Forwardable, interface_module.Backwardable, inter
             if(base == interface_module.Forwardable):
                 self.forwardable_layers.append(layer)
                 
-            elif(base == interface_module.Backwardable):
-                #self.backwardable_layers.append(layer)
-                self.backwardable_layers = [layer] + self.backwardable_layers
+            if(base == interface_module.Backwardable):
+                self.backwardable_layers.append(layer)
+                #self.backwardable_layers = [layer] + self.backwardable_layers
                 
-            elif(base == interface_module.Updatable):
+            if(base == interface_module.Updatable):
                 self.updatable_layers.append(layer)
 
-            elif(base == interface_module.Learnable):
-                self.learnable_layers.append(layer)
-                self.learnable_layer = layer
-                
-            else:
-                print('Network warning: 지원하지 않는 인터페이스가 발견됬습니다.')
+            if(base == interface_module.BackwardStartable):
+                self.backwardStartable_layer = layer
+
         return self
 
     def append_list(self, *layers):
@@ -46,7 +42,6 @@ class Network(interface_module.Forwardable, interface_module.Backwardable, inter
     def forward(self, x):
         for layer in self.forwardable_layers:
             x = layer.forward(x)
-            print(x) #debug
         return x
 
     def forward_line(self, x):
@@ -64,18 +59,28 @@ class Network(interface_module.Forwardable, interface_module.Backwardable, inter
             dx = layer.backward_line(dx)
         return dx
 
-    def learn(self, t):
-        dx = self.learnable_layer.learn(t)
-        
-        for layer in self.backwardable_layers:
-            dx = layer.backward(dx)
+    def startForward(self, x):
+        for layer in self.forwardable_layers:
+            x = layer.forward(x)
+        return x
+    
+    def startForward_line(self ,x):
+        for layer in self.forwardable_layers:
+            x = layer.forward_line(x)
+        return x
+
+    def startBackward(self, t):
+        dx = self.backwardStartable_layer.startBackward(t)
+        for i in range(len(self.backwardable_layers) -2, -1, -1):
+            dx = self.backwardable_layers[i].backward(dx)
+
         return dx
 
-    def learn_line(self, t):
-        dx = self.learnable_layer.learn_line(t)
-        
-        for layer in self.backwardable_layers:
-            dx = layer.backward_line(dx)
+    def startBackward_line(self, t):
+        dx = self.backwardStartable_layer.startBackward_line(t)
+        for i in range(len(self.backwardable_layers) -2, -1, -1):
+            dx = self.backwardable_layers[i].backward_line(dx)
+
         return dx
 
     def update(self, optimizer):

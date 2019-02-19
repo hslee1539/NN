@@ -3,13 +3,13 @@ from . import interface_module
 import tensor
 
 
-class Affine(interface_module.Forwardable, interface_module.Backwardable, interface_module.Updatable):
+class Affine(interface_module.Forwardable, interface_module.Backwardable, interface_module.ForwardStartable, interface_module.Updatable):
     def __init__(self, w, b):
         self.w = w
         self.b = b
         self.x = None
         self.out = tensor.Tensor([0],[1,1])
-        self.dout = None
+        self.dout = tensor.Tensor([0],[1,1])
 
         self.dw = w.copy()
         self.db = b.copy()
@@ -27,7 +27,7 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         return self.out
 
     def backward(self, dx):
-        if(self.out.shape[-2] != dx.shape[-2]):
+        if(self.dout.shape[-2] != dx.shape[-2]):
             self.dout = self.x.copy()
         
         return self.backward_line(dx)
@@ -37,6 +37,17 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         computing.backward_variables(self.x.array, dx.array, self.dw.array, self.db.array)
 
         return self.dout
+
+    def startForward(self, x):
+        if(self.out.shape[-2] != x.shape[-2]):
+            self.out = tensor.create_matrix_product(x, self.w)
+        
+        return self.startForward_line(x)
+
+    def startForward_line(self, x):
+        self.x = x # 읽기 전용
+        computing.forward(self.x.array, self.w.array, self.b.array, self.out.array)
+        return self.out
 
     def update(self, optimizer):
         optimizer.update(self.w, self.dw)
