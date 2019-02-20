@@ -4,6 +4,7 @@ sys.path.append(__file__.replace("NN\\layer\\computing\\test_module.py", ""))
 import tensor
 import affine_module as affine
 import batchnormalization_module as norm
+import conv3d_module
 import math
 
 def isSame(x,y):
@@ -86,7 +87,7 @@ def batch_nrom_forward(x_shape):
     jegop = tensor.create_element_wise_product(deviation, deviation)
     dispersion = tensor.create_sum(jegop, 0)
     dispersion2 = dispersion.copy()
-    std = dispersion.copy()
+    #std = dispersion.copy()
     
     forward_out = x.copy()
     forward_new_out = x.copy()
@@ -119,7 +120,7 @@ def test_norm_backward(x_shape, h = 0.001):
     #x = tensor.Tensor([1.,2.,3.,5.],[1,4])
     mean = tensor.create_sum(x, 0)
     d_mean = mean.copy()
-    d_mean2 = mean.copy()
+    #d_mean2 = mean.copy()
     deviation = tensor.create_element_wise_product(x,mean)
     jegop = tensor.create_element_wise_product(deviation, deviation)
     print(jegop.shape)
