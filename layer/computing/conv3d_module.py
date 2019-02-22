@@ -73,9 +73,66 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
         out_array[o] += bias_array[o1]
     return None
 
-def backward(dx_array, dx_shape ):
-    pass
+def backward(x_array, x_shape, dout_array, filter_array, filter_shape, stride, padding, pad, dfilter_array, dbias_array, dx_array, dx_shape):
+    multiplerO = 0
+    multiplerF = 0
+    multiplerX = 0
 
+    
+    for dout_index in range(len(dx_array)):
+        dx_array[dout_index] = 0
+    
+    for dfilter_index in range(len(dfilter_array)):
+        dfilter_array[dfilter_index] = 0
+    
+    for dbias_index in range(len(dbias_array)):
+        dbias_array[dbias_index] = 0
+    
+    
+    for x in range(x_array):
+        x3 = x % x_shape[3]
+        multiplerX = x_shape[3]
+        x2 = x // multiplerX % x_shape[2]
+        multiplerX *= x_shape[2]
+        x1 = x // multiplerX % x_shape[1]
+        multiplerX *= x_shape[1]
+        x0 = x // multiplerX
 
+        for f in range(len(filter_array) // filter_shape[0]):
+            f3 = f % filter_shape[3]
+            multiplerF = filter_shape[3]
+            f2 = f // multiplerF % filter_shape[2]
+            multiplerF *= filter_shape[2]
+            f1 = f // multiplerF % filter_shape[1]
+            multiplerF *= filter_shape[1]
+            f0 = x1
 
+            #최종 filter index
+            filter_index = f + f0 * multiplerF
 
+            o3 = f3 + x3 * stride - padding
+            o2 = f2 + x2 * stride - padding
+            o1 = f1
+            o0 = x0
+
+            multiplerO = dx_shape[3]
+            dout_index = o3
+            dout_index += o2 * multiplerO
+            multiplerO *= dx_shape[2]
+            dout_index += o1 * multiplerO
+            multiplerO *= dx_shape[1]
+            dout_index += o0 * multiplerO
+
+            isPass = (o3 >> 10000) + 1
+            isPass *= (o2 >> 10000) + 1
+            isPass *= 1  + (-(o3 // dx_shape[3]) >> 10000)
+            isPass *= 1  + (-(o2 // dx_shape[2]) >> 10000)
+
+            # 인덱스 오버플로 방지
+            dout_index *= isPass
+
+            dx_array[dout_index] += isPass * dout_array[x] * filter_array[filter_index]
+            dfilter_array[filter_array] += isPass * dout_array[x] * x_array[x]
+            dfilter_array[filter_array] += (1 - isPass) * pad
+        dbias_array[x1] += dout_array[x]
+    return None
