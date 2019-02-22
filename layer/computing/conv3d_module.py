@@ -73,7 +73,7 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
         out_array[o] += bias_array[o1]
     return None
 
-def backward(x_array, x_shape, dout_array, filter_array, filter_shape, stride, padding, pad, dfilter_array, dbias_array, dx_array, dx_shape):
+def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, padding, pad, dfilter_array, dbias_array, dx_array, dx_shape):
     multiplerO = 0
     multiplerF = 0
     multiplerX = 0
@@ -89,50 +89,50 @@ def backward(x_array, x_shape, dout_array, filter_array, filter_shape, stride, p
         dbias_array[dbias_index] = 0
     
     
-    for x in range(x_array):
-        x3 = x % x_shape[3]
-        multiplerX = x_shape[3]
-        x2 = x // multiplerX % x_shape[2]
-        multiplerX *= x_shape[2]
-        x1 = x // multiplerX % x_shape[1]
-        multiplerX *= x_shape[1]
-        x0 = x // multiplerX
+    for dout_index in range(len(dout_array)):
+        dout3 = dout_index % dout_shape[3]
+        multiplerDout = dout_shape[3]
+        dout2 = dout_index // multiplerDout % dout_shape[2]
+        multiplerDout *= dout_shape[2]
+        dout1 = dout_index // multiplerDout % dout_shape[1]
+        multiplerDout *= dout_shape[1]
+        dout0 = dout_index // multiplerDout
 
         for f in range(len(filter_array) // filter_shape[0]):
-            f3 = f % filter_shape[3]
+            filter3 = f % filter_shape[3]
             multiplerF = filter_shape[3]
-            f2 = f // multiplerF % filter_shape[2]
+            filter2 = f // multiplerF % filter_shape[2]
             multiplerF *= filter_shape[2]
-            f1 = f // multiplerF % filter_shape[1]
+            filter1 = f // multiplerF % filter_shape[1]
             multiplerF *= filter_shape[1]
-            f0 = x1
+            filter0 = dout1
 
             #최종 filter index
-            filter_index = f + f0 * multiplerF
+            filter_index = f + filter0 * multiplerF
 
-            o3 = f3 + x3 * stride - padding
-            o2 = f2 + x2 * stride - padding
-            o1 = f1
-            o0 = x0
+            x3 = filter3 + dout3 * stride - padding
+            x2 = filter2 + dout2 * stride - padding
+            x1 = filter1
+            x0 = dout0
 
             multiplerO = dx_shape[3]
-            dout_index = o3
-            dout_index += o2 * multiplerO
+            x_index = x3
+            x_index += x2 * multiplerO
             multiplerO *= dx_shape[2]
-            dout_index += o1 * multiplerO
+            x_index += x1 * multiplerO
             multiplerO *= dx_shape[1]
-            dout_index += o0 * multiplerO
+            x_index += x0 * multiplerO
 
-            isPass = (o3 >> 10000) + 1
-            isPass *= (o2 >> 10000) + 1
-            isPass *= 1  + (-(o3 // dx_shape[3]) >> 10000)
-            isPass *= 1  + (-(o2 // dx_shape[2]) >> 10000)
+            isPass = (x3 >> 10000) + 1
+            isPass *= (x2 >> 10000) + 1
+            isPass *= 1  + (-(x3 // dx_shape[3]) >> 10000)
+            isPass *= 1  + (-(x2 // dx_shape[2]) >> 10000)
 
             # 인덱스 오버플로 방지
-            dout_index *= isPass
+            x_index *= isPass
 
-            dx_array[dout_index] += isPass * dout_array[x] * filter_array[filter_index]
-            dfilter_array[filter_array] += isPass * dout_array[x] * x_array[x]
-            dfilter_array[filter_array] += (1 - isPass) * pad
-        dbias_array[x1] += dout_array[x]
+            dx_array[x_index] += isPass * dout_array[dout_index] * filter_array[filter_index]
+            dfilter_array[filter_index] += isPass * dout_array[dout_index] * x_array[x_index]
+            dfilter_array[filter_index] += (1 - isPass) * pad
+        dbias_array[dout1] += dout_array[dout_index]
     return None
