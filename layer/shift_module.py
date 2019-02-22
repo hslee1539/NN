@@ -21,11 +21,11 @@ class Shift(interface_module.Forwardable, interface_module.Backwardable, interfa
         computing.forward(x.array, self.w.array, self.b.array, self.out.array)
         return self.out
 
-    def backward(self, dx):
-        return self.backward_line(dx)
+    def backward(self, dout):
+        return self.backward_line(dout)
 
-    def backward_line(self, dx):
-        computing.backward(dx.array, self.w.array, self.dw.array, self.db.array, self.out.array)
+    def backward_line(self, dout):
+        computing.backward(dout.array, self.w.array, self.dw.array, self.db.array, self.out.array)
         return self.out
 
     def update(self, optimizer = Optimizer()):

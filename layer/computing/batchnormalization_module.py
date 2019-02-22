@@ -32,12 +32,12 @@ def forward(x_array, x_shape, dispersion_array, out_array):
             
     return None
 
-def backward(dx_array, dispersion_array, out_array):
+def backward(dout_array, dispersion_array, out_array):
     # dispersion_array는 dx의 shape에서 0차원을 제외한 shape임
     # 즉, D는 dim(dx) - 1d의 의미를 가지는 텐서임(1tensor의 column이거나, 2tensor의 단색 이미지이거나, 3tensor의 다 채널의 이미지거나, 기타 등등)
     D = len(dispersion_array)
     # 따라서 dx.length에 D를 나누면, 의미 있는 텐서들의 데이터 수가 됨.
-    N = len(dx_array) // D
+    N = len(dout_array) // D
 
     # dx에서 분산 노드로 가는 미분 값
     tmp1 = 0
@@ -48,17 +48,17 @@ def backward(dx_array, dispersion_array, out_array):
         #tmp1 계산
         tmp1 = 0
         for i in range(N):
-            tmp1 += out_array[i * D + data_index] * dx_array[i * D + data_index]
+            tmp1 += out_array[i * D + data_index] * dout_array[i * D + data_index]
         
         #tmp2 계산
         tmp2 = 0
         for i in range(N):
-            tmp2 += tmp1 * out_array[i * D + data_index] / N - dx_array[i * D + data_index]
+            tmp2 += tmp1 * out_array[i * D + data_index] / N - dout_array[i * D + data_index]
         tmp2 /= N
         
         #최종 역전파 계산 (forward값 손실)
         for i in range(N):
-            out_array[i * D + data_index] = tmp2 - tmp1 * out_array[i * D + data_index] / N + dx_array[i * D + data_index]
+            out_array[i * D + data_index] = tmp2 - tmp1 * out_array[i * D + data_index] / N + dout_array[i * D + data_index]
             out_array[i * D + data_index] /= dispersion_array[data_index]
         
     return None
@@ -97,9 +97,9 @@ def forward(x_array, x_shape, dispersion_array, out_array):
             
     return None
 
-def backward(dx_array, dispersion_array, out_array):
+def backward(dout_array, dispersion_array, out_array):
     batch_size = dx_shape[0]
-    norn_size = len(dx_array) // batch_size
+    norn_size = len(dout_array) // batch_size
     pass_index = 0
 
     # dx에서 분산 노드로 가는 미분 값
@@ -112,17 +112,17 @@ def backward(dx_array, dispersion_array, out_array):
         #tmp1 계산
         tmp1 = 0
         for c in range(norn_size):
-            tmp1 += out_array[pass_index + c] * dx_array[pass_index + c]
+            tmp1 += out_array[pass_index + c] * dout_array[pass_index + c]
 
         #tmp2 계산
         tmp2 = 0
         for c in range(norn_size):
-            tmp2 += tmp1 * out_array[pass_index + c] / norn_size - dx_array[pass_index + c]
+            tmp2 += tmp1 * out_array[pass_index + c] / norn_size - dout_array[pass_index + c]
         tmp2 /= norn_size
 
         #최종 역전파 계산 (forward값 손실)
         for c in range(norn_size):
-            out_array[pass_index + c] = tmp2 - tmp1 * out_array[pass_index + c] + dx_array[pass_index]
+            out_array[pass_index + c] = tmp2 - tmp1 * out_array[pass_index + c] + dout_array[pass_index]
             out_array[pass_index + c] /= dispersion_array[r]
         
     return None

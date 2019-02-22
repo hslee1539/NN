@@ -16,11 +16,11 @@ class Softmax(interface_module.Forwardable, interface_module.Backwardable, inter
         computing.forward(x.array, x.shape, self.out.array)
         return self.out
 
-    def backward(self, dx):
-        return self.backward_line(dx)
+    def backward(self, dout):
+        return self.backward_line(dout)
 
-    def backward_line(self, dx):
-        computing.backward(dx.array, dx.shape, self.out.array)
+    def backward_line(self, dout):
+        computing.backward(dout.array, dout.shape, self.out.array)
         return self.out
 
     def startBackward(self, t):

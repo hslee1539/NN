@@ -1,10 +1,10 @@
 
 class Backwardable:
     """역전파 인터페이스입니다."""
-    def backward(self, dx):
+    def backward(self, dout):
         raise NotImplementedError
 
-    def backward_line(self,dx):
+    def backward_line(self,dout):
         raise NotImplementedError
 
 class BackwardStartable:

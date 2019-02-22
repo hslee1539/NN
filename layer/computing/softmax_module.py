@@ -24,11 +24,11 @@ def forward(x_array, x_shape, out_array):
 
     return None
 
-def backward(dx_array, dx_shape, out_array):
+def backward(dout_array, dout_shape, out_array):
     """softmax의 순전파 결과를 역전파 결과로 연산합니다.
         forward의 out_array와 공유합니다."""
-    col = dx_shape[-1]
-    row = len(dx_array) // col
+    col = dout_shape[-1]
+    row = len(dout_array) // col
     
     pass_row = 0
     index = 0
@@ -40,10 +40,10 @@ def backward(dx_array, dx_shape, out_array):
         
         for c in range(col):
             index = pass_row + c
-            sigma += dx_array[index] * out_array[index]
+            sigma += dout_array[index] * out_array[index]
         for c in range(col):
             index = pass_row + c
-            out_array[index] *= dx_array[index] - sigma
+            out_array[index] *= dout_array[index] - sigma
             
     return None
 

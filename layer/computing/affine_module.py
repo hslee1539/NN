@@ -28,22 +28,22 @@ def forward(x_array, w_array, b_array, out):
         out[index] += b_array[pass_w_index]
     return None
 
-def backward(dx_array, w_array, w_shape, out):
-    dx_size = len(dx_array)
+def backward(dout_array, w_array, w_shape, dx_array):
+    dx_size = len(dout_array)
     w_size = len(w_array)
 
-    for index in range(len(out)):
+    for index in range(len(dx_array)):
         pass_dx_index = index // w_shape[0] * w_shape[1]
         pass_w_index = index * w_shape[1]
 
-        out[index] = 0
+        dx_array[index] = 0
         for product_index in range(w_shape[1]):
-            out[index] += dx_array[(pass_dx_index + product_index) % dx_size] * w_array[(pass_w_index + product_index) % w_size]
+            dx_array[index] += dout_array[(pass_dx_index + product_index) % dx_size] * w_array[(pass_w_index + product_index) % w_size]
     return None
 
-def backward_variables(x_array, dx_array, dw_array, db_array):
+def backward_variables(x_array, dout_array, dw_array, db_array):
     #x_size = len(x_array)
-    dx_size = len(dx_array)
+    dx_size = len(dout_array)
     dw_size = len(dw_array)
     db_size = len(db_array)
 
@@ -59,7 +59,7 @@ def backward_variables(x_array, dx_array, dw_array, db_array):
             dw_array[row * db_size + col] = 0
             
         for product_index in range(product_max):
-            db_array[col] += dx_array[product_index * db_size + col]
+            db_array[col] += dout_array[product_index * db_size + col]
             for row in range(x_col):
-                dw_array[row * db_size + col] += x_array[row + product_index * x_col] * dx_array[col + product_index * db_size]
+                dw_array[row * db_size + col] += x_array[row + product_index * x_col] * dout_array[col + product_index * db_size]
         

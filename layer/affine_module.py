@@ -9,7 +9,7 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         self.b = b
         self.x = None
         self.out = tensor.Tensor([0],[1,1])
-        self.dout = tensor.Tensor([0],[1,1])
+        self.dx = tensor.Tensor([0],[1,1])
 
         self.dw = w.copy()
         self.db = b.copy()
@@ -26,17 +26,17 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         computing.forward(self.x.array, self.w.array, self.b.array, self.out.array)
         return self.out
 
-    def backward(self, dx):
-        if(self.dout.shape[-2] != dx.shape[-2]):
-            self.dout = self.x.copy()
+    def backward(self, dout):
+        if(self.dx.shape[-2] != dout.shape[-2]):
+            self.dx = self.x.copy()
         
-        return self.backward_line(dx)
+        return self.backward_line(dout)
 
-    def backward_line(self, dx):
-        computing.backward(dx.array, self.w.array, self.w.shape, self.dout.array)
-        computing.backward_variables(self.x.array, dx.array, self.dw.array, self.db.array)
+    def backward_line(self, dout):
+        computing.backward(dout.array, self.w.array, self.w.shape, self.dx.array)
+        computing.backward_variables(self.x.array, dout.array, self.dw.array, self.db.array)
 
-        return self.dout
+        return self.dx
 
     def startForward(self, x):
         if(self.out.shape[-2] != x.shape[-2]):
