@@ -76,7 +76,7 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
 def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, padding, pad, dfilter_array, dbias_array, dx_array, dx_shape):
     multiplerO = 0
     multiplerF = 0
-    multiplerX = 0
+    multiplerDout = 0
 
     
     for dout_index in range(len(dx_array)):
@@ -133,6 +133,6 @@ def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride
 
             dx_array[x_index] += isPass * dout_array[dout_index] * filter_array[filter_index]
             dfilter_array[filter_index] += isPass * dout_array[dout_index] * x_array[x_index]
-            dfilter_array[filter_index] += (1 - isPass) * pad
+            dfilter_array[filter_index] += (1 - isPass) * pad * dout_array[dout_index]
         dbias_array[dout1] += dout_array[dout_index]
     return None

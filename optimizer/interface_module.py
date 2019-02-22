@@ -1,3 +1,3 @@
 class Base:
-    def update(base, delta):
+    def update(self, base, delta):
         pass
