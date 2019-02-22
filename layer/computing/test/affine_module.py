@@ -22,10 +22,8 @@ def test(data_shape, w_shape):
     dw1 = w.copy()
     dw2 = w.copy()
     db1 = b.copy()
-    db2 = b.copy()
 
     dout_sigmoid = out_affine.copy()
-    dout_affine = out_affine.copy()
 
     dout1 = x.copy()
     dout2 = x.copy()
@@ -85,7 +83,6 @@ def test2(data_shape, w_shape):
     dw1 = w.copy()
     dw2 = w.copy()
     db1 = b.copy()
-    db2 = b.copy()
 
     dx1 = x.copy()
     dx2 = x.copy()
