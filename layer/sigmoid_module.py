@@ -7,7 +7,7 @@ class Sigmoid(interface_module.Forwardable, interface_module.Backwardable):
         self.out = tensor.Tensor([0], [1,1])
 
     def forward(self, x):
-        if(self.out.shape[-2] != x.shape[-2]):
+        if(self.out.shape[0] != x.shape[0]):
             self.out = x.copy()
         return self.forward_line(x)
     

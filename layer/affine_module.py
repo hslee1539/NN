@@ -16,7 +16,7 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         
 
     def forward(self, x):
-        if(self.out.shape[-2] != x.shape[-2]):
+        if(self.out.shape[0] != x.shape[0]):
             self.out = tensor.create_matrix_product(x, self.w)
         
         return self.forward_line(x)
@@ -27,7 +27,7 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         return self.out
 
     def backward(self, dout):
-        if(self.dx.shape[-2] != dout.shape[-2]):
+        if(self.dx.shape[0] != dout.shape[0]):
             self.dx = self.x.copy()
         
         return self.backward_line(dout)
@@ -39,7 +39,7 @@ class Affine(interface_module.Forwardable, interface_module.Backwardable, interf
         return self.dx
 
     def startForward(self, x):
-        if(self.out.shape[-2] != x.shape[-2]):
+        if(self.out.shape[0] != x.shape[0]):
             self.out = tensor.create_matrix_product(x, self.w)
         
         return self.startForward_line(x)
