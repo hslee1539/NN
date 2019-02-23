@@ -1,9 +1,9 @@
-def create_shape(x_shape, filter_shape, stride, padding):
-    shape = [x_shape[0], filter_shape[0], (x_shape[2] + 2 * padding - filter_shape[2]) // stride + 1, (x_shape[3] + 2 * padding - filter_shape[3]) // stride + 1]
+def create_shape(x_shape, filter_shape, stride, pad):
+    shape = [x_shape[0], filter_shape[0], (x_shape[2] + 2 * pad - filter_shape[2]) // stride + 1, (x_shape[3] + 2 * pad - filter_shape[3]) // stride + 1]
     return shape
 
-def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, padding, pad, out_array, out_shape):
-    """padding : 빈 공간, pad : 빈 공간에 대체되는 수"""
+def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
+    """pad : 빈 공간, padding : 빈 공간에 대체되는 수"""
     multipler1 = 0
     multipler2 = 0
     multiplerX = 0
@@ -36,8 +36,8 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
             #최종 filter index
             filter_index = f + f0 * multipler2
 
-            x3 = f3 + o3 * stride - padding
-            x2 = f2 + o2 * stride - padding
+            x3 = f3 + o3 * stride - pad
+            x2 = f2 + o2 * stride - pad
             x1 = f1
             x0 = o0
 
@@ -51,13 +51,13 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
             x_index += x0 * multiplerX
 
             # 여기에 반대쪽의 경우를 코딩 해라.
-            # x의 -1차원 부분의 index가 음수라면, padding 부분임.
+            # x의 -1차원 부분의 index가 음수라면, pad 부분임.
             # 이 index를 아주 큰 수로 right 연산하면 양수면 0 음수면 -1이 나옴.
-            # 이를 +1을 하여 음수면 0 양수면 1 즉, padding 부분이면 0이 되어 이 값을 곱하면 padding 처리가 됨.
+            # 이를 +1을 하여 음수면 0 양수면 1 즉, pad 부분이면 0이 되어 이 값을 곱하면 pad 처리가 됨.
             isPass = (x3 >> 10000) + 1
-            # 이 경우, 같은 원리로, -2차원의 index가 padding 영역인지 판단함.
+            # 이 경우, 같은 원리로, -2차원의 index가 pad 영역인지 판단함.
             isPass *= (x2 >> 10000) + 1
-            # 이 경우, x_shape[-1]의 값을 넘으면 반대쪽 padding 부분임.
+            # 이 경우, x_shape[-1]의 값을 넘으면 반대쪽 pad 부분임.
             isPass *= 1  + (-(x3 // x_shape[3]) >> 10000)
             # 이 경우 같은 원리로, -2차원의 경우임.
             isPass *= 1  + (-(x2 // x_shape[2]) >> 10000)
@@ -67,13 +67,13 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
 
             # x와 filter와 곱함.
             out_array[o] += x_array[x_index] * filter_array[filter_index] * isPass
-            # padding 부분은 pad 값으로 채움.
-            out_array[o] += pad * (1 - isPass)
+            # pad 부분은 padding 값으로 채움.
+            out_array[o] += padding * (1 - isPass)
         # 바이어스와 더함.
         out_array[o] += bias_array[o1]
     return None
 
-def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, padding, pad, dfilter_array, dbias_array, dx_array, dx_shape):
+def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, pad, padding, dfilter_array, dbias_array, dx_array, dx_shape):
     multiplerO = 0
     multiplerF = 0
     multiplerDout = 0
@@ -110,8 +110,8 @@ def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride
             #최종 filter index
             filter_index = f + filter0 * multiplerF
 
-            x3 = filter3 + dout3 * stride - padding
-            x2 = filter2 + dout2 * stride - padding
+            x3 = filter3 + dout3 * stride - pad
+            x2 = filter2 + dout2 * stride - pad
             x1 = filter1
             x0 = dout0
 
@@ -133,6 +133,9 @@ def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride
 
             dx_array[x_index] += isPass * dout_array[dout_index] * filter_array[filter_index]
             dfilter_array[filter_index] += isPass * dout_array[dout_index] * x_array[x_index]
-            dfilter_array[filter_index] += (1 - isPass) * pad * dout_array[dout_index]
+            # ??? 아래를 막아야 됨... X가 pad영역일때, filter * padding가 되기 때문에 이 경우의 미분은 아래가 맞지만...
+            # 막아야 편미분한 것과 값이 같아짐....
+            # 왜일까...?
+            #dfilter_array[filter_index] += (1 - isPass) * padding * dout_array[dout_index]
         dbias_array[dout1] += dout_array[dout_index]
     return None
