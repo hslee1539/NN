@@ -1,41 +1,40 @@
+class Forwardable:
+    """순전파 인터페이스입니다."""
+    def initForward(self, x):
+        raise NotImplementedError
+
+    def forward(self):
+        raise NotImplementedError
+
+class PartialForwardable(Forwardable):
+    def initPartial(self, max_index):
+        raise NotImplementedError
+    
+    def partialForward(self, index):
+        raise NotImplementedError
 
 class Backwardable:
     """역전파 인터페이스입니다."""
-    def backward(self, dout):
+    def initBackward(self, dout, t = None):
         raise NotImplementedError
 
-    def backward_line(self,dout):
+    def backward(self):
         raise NotImplementedError
 
-class BackwardStartable:
-    """역전파를 시작하는 인터페이스입니다."""
-    def startBackward(self, t):
-        raise NotImplementedError
-    
-    def startBackward_line(self, t):
+class PartialBackwardable(Backwardable, PartialForwardable):
+    def partialBackward(self, index):
         raise NotImplementedError
 
-class ForwardStartable:
-    """순전파를 시작하는 인터페이스입니다."""
-    def startForward(self, x):
-        raise NotImplementedError
-    def startForward_line(self, x):
-        raise NotImplementedError
-
-class Forwardable:
-    """순전파 인터페이스입니다."""
-    def forward(self, x):
-        raise NotImplementedError
-
-    def forward_line(self, x):
-        raise NotImplementedError
-    
 class Initable:
     def init(self):
         raise NotImplementedError
 
 class Updatable:
     def update(self, optimizer):
+        raise NotImplementedError
+
+class PartialUpdatable(PartialBackwardable):
+    def partialUpdate(self, optimizer, index):
         raise NotImplementedError
 
 class Learnable:
