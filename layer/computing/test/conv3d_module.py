@@ -4,6 +4,24 @@ sys.path.append(__file__.replace("NN\\layer\\computing\\test\\conv3d_module.py",
 import tensor
 import NN.layer.computing.conv3d_module as conv3d_module
 
+import time
+
+def test_compare_alg1(data_shape, filter_shape, stride, pad, padding):
+    x = tensor.create_gauss(data_shape)
+    bias = tensor.create_ones([filter_shape[0]])
+    filter = tensor.create_gauss(filter_shape)
+    out1 = tensor.create_zeros(conv3d_module.create_shape(x.shape, filter.shape, stride, pad))
+    out2 = tensor.create_zeros(conv3d_module.create_shape(x.shape, filter.shape, stride, pad))
+    time1 = time.time_ns()
+    #conv3d_module.forward_old(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out1.array, out1.shape)
+    time2 = time.time_ns()
+    conv3d_module.forward(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out2.array, out2.shape)
+    time3 = time.time_ns()
+    print('{0}, {1}'.format(time2 - time1, time3 - time2))
+    print('{0}'.format(tensor.isSame(out1, out2)))
+
+
+
 def test_conv3d_forward(data_shape, filter_shape, stride, pad, padding):
     x = tensor.create_gauss(data_shape)
     b = tensor.create_ones([filter_shape[0]])
@@ -71,5 +89,7 @@ def test_conv3d_backward(data_shape, filter_shape, stride, pad, padding):
 
 #test_conv3d_forward([2,2,5,5], [2,2,3,3],2,1,0)
 
-test_conv3d_backward([2,2,2,2], [2,2,2,2],1,3,1)
+#test_conv3d_backward([2,2,2,2], [2,2,2,2],1,3,1)
+
+test_compare_alg1([50,3,28,28], [2, 3,5,5],1,2,0)
 
