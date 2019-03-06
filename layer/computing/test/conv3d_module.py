@@ -52,6 +52,7 @@ def test_conv3d_backward(data_shape, filter_shape, stride, pad, padding):
     #conv3d_module.backward(x.array, dout.array, dout.shape, filter.array, filter.shape, stride, pad, padding, dfilter.array, db.array, dx.array, dx.shape)
     conv3d_module.backward(dout.array,dout.shape, filter.array, filter.shape, stride, pad, dx.array,dx.shape)
     conv3d_module.backward_filter(dout.array, dout.shape, x.array, x.shape, stride, pad, padding, dfilter.array, dfilter.shape)
+    conv3d_module.backward_bias(dout.array, dout.shape, db.array)
 
     for i in range(len(x.array)):
         origen = x.array[i]
@@ -83,12 +84,29 @@ def test_conv3d_backward(data_shape, filter_shape, stride, pad, padding):
         dfilter_diff.array[i] = (out1 - out2) / (2 * 0.0001)
         filter.array[i] = origen
     
+    for i in range(len(b.array)):
+        origen = b.array[i]
+        b.array[i] = origen + 0.0001
+        conv3d_module.forward(x.array, x.shape, filter.array, filter.shape, b.array, stride, pad, padding, out.array, out.shape)
+        out1 = 0
+        for j in range(len(out.array)):
+            out1 += out.array[j]
+        b.array[i] = origen - 0.0001
+        conv3d_module.forward(x.array, x.shape, filter.array, filter.shape, b.array, stride, pad, padding, out.array, out.shape)
+        out2 = 0
+        for j in range(len(out.array)):
+            out2 += out.array[j]
+        db_diff.array[i] = (out1 - out2) / (2 * 0.0001)
+        b.array[i] = origen
+    
+    
     #print(dx)
     #print(dx_diff)
     #print(dfilter)
     #print(dfilter_diff)
     print(tensor.isSame(dx,dx_diff))
     print(tensor.isSame(dfilter, dfilter_diff))
+    print(tensor.isSame(db, db_diff))
 
 
 #test_conv3d_forward([2,2,5,5], [2,2,3,3],2,1,0)

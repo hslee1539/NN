@@ -607,6 +607,20 @@ def backward_filter(dout_array, dout_shape, x_array, x_shape, stride, pad, paddi
         dfilter_array[dfilter_index] = tmp
     return None
 
+def backward_bias(dout_array, dout_shape, dbias_array):
+    zero = type(dbias_array[0])(0)
+    dout0_range = range(dout_shape[0])
+    dout23_range = range(dout_shape[2] * dout_shape[3])
+    multipler_dout2 = dout_shape[3] * dout_shape[2]
+    multipler_dout1 = multipler_dout2 * dout_shape[1]
+    for dbias_index in range(len(dbias_array)):
+        tmp = zero
+        dout_index2 = dbias_index * multipler_dout2
+        for dout0 in dout0_range:
+            dout_index0 = dout_index2 + dout0 * multipler_dout1
+            for dout23 in dout23_range:
+                tmp += dout_array[dout_index0 + dout23]
+        dbias_array[dbias_index] = tmp
 
 
 
