@@ -73,6 +73,7 @@ def forward_old(x_array, x_shape, filter_array, filter_shape, bias_array, stride
         out_array[o] += bias_array[o1]
     return None
 
+# 생각보다 제어 해저드가 성능을 많이 차지 안함. 아래가 더 빠름
 def forward_old2(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
     zero = type(out_array[0])(0)
     #tmp = zero
@@ -114,6 +115,7 @@ def forward_old2(x_array, x_shape, filter_array, filter_shape, bias_array, strid
                                 tmp += x_array[x_index] * filter_array[filter_index] * isPass + padding * (1 - isPass)
                     out_array[out_index2 + o3] = tmp + bias_array[o1]
 
+# 그리고 생각보다 계산한 것을 메모리에 저장하고 다시 쓰는 것 또한 비용이 많이 듬.
 def forward_old3(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
     zero = type(out_array[0])(0)
     tmp = zero
@@ -225,9 +227,8 @@ def forward_old5(x_array, x_shape, filter_array, filter_shape, bias_array, strid
                                     tmp += padding
                     out_array[out_index2 + o3] = tmp + bias_array[o1]
 
-def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
+def forward_old6(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
     zero = type(out_array[0])(0)
-    tmp = zero
     multipler_out2 = out_shape[3] * out_shape[2]
     multipler_out1 = multipler_out2 * out_shape[1]
     multipler_filter2 = filter_shape[3] * filter_shape[2]
@@ -265,7 +266,84 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
                                 tmp += padding * filter_shape[3]
                     out_array[out_index2 + o3] = tmp + bias_array[o1]
 
+#위에서는 for문이 여러번있어 제어 해저드 비용이 높은 반면 중복연산 수를 최소화 했는데,
+# i5-7200u cpu 기준으로 아래로 4중첩 for문을 한개로 줄이는게 미세하게 빠름
+# 그리고 분할 계산 구현에 매우 좋음. (shape[0] vs array라 분할 갯수와 나눌때 이쪽이 0에 더 근접함.(0에 근접할 수록 계산량이 평등하게됨.))
+# 결론은 가장 많이 연산이 될 하위 for문들만 다이어트 해주면 됨.
+def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
+    """"""
+    zero = type(out_array[0])(0)
+    multipler_out2 = out_shape[3] * out_shape[2]
+    multipler_out1 = multipler_out2 * out_shape[1]
+    multipler_filter2 = filter_shape[3] * filter_shape[2]
+    multipler_filter1 = multipler_filter2 * filter_shape[1]
+    multipler_x2 = x_shape[3] * x_shape[2]
+    multipler_x1 = multipler_x2 * x_shape[1]
+    for out_index in range(len(out_array)):
+        o0 = out_index // multipler_out1 % out_shape[0]
+
+        filter_index0 = (out_index // multipler_out2 % out_shape[1]) * multipler_filter1
+        x2_tmp = (out_index // out_shape[3] % out_shape[2]) * stride - pad
+        x3_tmp = (out_index % out_shape[3]) * stride - pad
+        tmp = zero
+        for f1 in range(filter_shape[1]):
+            filter_index1 = filter_index0 + f1 * multipler_filter2
+            x_index1 = o0 * multipler_x1 + f1 * multipler_x2
+            for f2 in range(filter_shape[2]):
+                filter_index2 = filter_index1 + f2 * filter_shape[3]
+                x2 = f2 + x2_tmp
+                x_index2 = x_index1 + x2 * x_shape[3]
+
+                #isPass2 = (-1 < x2) & (x2 < x_shape[2])
+                if((-1 < x2) & (x2 < x_shape[2])):
+                    for f3 in range(filter_shape[3]):
+                        x3 = f3 + x3_tmp
+                        if((-1 < x3) & (x3 < x_shape[3])):
+                            tmp += x_array[x_index2 + x3] * filter_array[filter_index2 + f3]
+                        else:
+                            tmp += padding
+                else:
+                    tmp += padding * filter_shape[3]
+        out_array[out_index] = tmp + bias_array[out_index // multipler_out2 % out_shape[1]]
+
+
 def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape, index, max_index):
+    """out_array가 max_index와 %연산 결과 0이랑 가까울수록 분배가 잘됨."""
+    zero = type(out_array[0])(0)
+    multipler_out2 = out_shape[3] * out_shape[2]
+    multipler_out1 = multipler_out2 * out_shape[1]
+    multipler_filter2 = filter_shape[3] * filter_shape[2]
+    multipler_filter1 = multipler_filter2 * filter_shape[1]
+    multipler_x2 = x_shape[3] * x_shape[2]
+    multipler_x1 = multipler_x2 * x_shape[1]
+    for out_index in range(index * len(out_array) // max_index, (index + 1) * len(out_array) // max_index):
+        o0 = out_index // multipler_out1 % out_shape[0]
+
+        filter_index0 = (out_index // multipler_out2 % out_shape[1]) * multipler_filter1
+        x2_tmp = (out_index // out_shape[3] % out_shape[2]) * stride - pad
+        x3_tmp = (out_index % out_shape[3]) * stride - pad
+        tmp = zero
+        for f1 in range(filter_shape[1]):
+            filter_index1 = filter_index0 + f1 * multipler_filter2
+            x_index1 = o0 * multipler_x1 + f1 * multipler_x2
+            for f2 in range(filter_shape[2]):
+                filter_index2 = filter_index1 + f2 * filter_shape[3]
+                x2 = f2 + x2_tmp
+                x_index2 = x_index1 + x2 * x_shape[3]
+
+                #isPass2 = (-1 < x2) & (x2 < x_shape[2])
+                if((-1 < x2) & (x2 < x_shape[2])):
+                    for f3 in range(filter_shape[3]):
+                        x3 = f3 + x3_tmp
+                        if((-1 < x3) & (x3 < x_shape[3])):
+                            tmp += x_array[x_index2 + x3] * filter_array[filter_index2 + f3]
+                        else:
+                            tmp += padding
+                else:
+                    tmp += padding * filter_shape[3]
+        out_array[out_index] = tmp + bias_array[out_index // multipler_out2 % out_shape[1]]
+
+def partialForward_old(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape, index, max_index):
     """pad : 빈 공간, padding : 빈 공간에 대체되는 수"""
     multipler1 = 0
     multipler2 = 0
@@ -339,7 +417,7 @@ def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, str
         out_array[o] += bias_array[o1]
     return None
 
-def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, pad, padding, dfilter_array, dbias_array, dx_array, dx_shape):
+def backward_old(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, pad, padding, dfilter_array, dbias_array, dx_array, dx_shape):
     multiplerO = 0
     multiplerF = 0
     multiplerDout = 0
@@ -406,7 +484,54 @@ def backward(x_array, dout_array, dout_shape, filter_array, filter_shape, stride
         dbias_array[dout1] += dout_array[dout_index]
     return None
 
-def partialBackward(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape, index, max_index):
+def backward(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape):
+    zero = type(dout_array[0])(0)
+    multipler_dout2 = dout_shape[3] * dout_shape[2]
+    multipler_dout1 = multipler_dout2 * dout_shape[1]
+    multipler_filter2 = filter_shape[3] * filter_shape[2]
+    multipler_filter1 = multipler_filter2 * filter_shape[1]
+    multipler_dx2 = dx_shape[3] * dx_shape[2]
+    multipler_dx1 = multipler_dx2 * dx_shape[1]
+    for dx_index in range(len(dx_array)):
+        dx3 = dx_index % dx_shape[3]
+        dx2 = dx_index // dx_shape[3] % dx_shape[2]
+        dx1 = dx_index // multipler_dx2 % dx_shape[1]
+        dx0 = dx_index // multipler_dx1
+        tmp = zero
+        filter2_tmp = dx2 + pad
+        filter3_tmp = dx3 + pad
+
+        dout_index0 = dx0 * multipler_dout1
+        filter_index1 = dx1 * multipler_filter2
+
+        dout3_range = range(max((dx3 + pad - filter_shape[3]) // stride, -1) + 1, min(-(-(dx3 + pad + 1)// stride),dout_shape[3]))
+        dout2_range = range(max((dx2 + pad - filter_shape[2]) // stride, -1) + 1, min(-(-(dx2 + pad + 1)// stride),dout_shape[2]))
+        
+
+        for dout1 in range(dout_shape[1]):
+            dout_index1 = dout_index0 + dout1 * multipler_dout2
+            filter_index0 = filter_index1 + dout1 * multipler_filter1
+        
+            for dout2 in dout2_range:
+                dout_index2 = dout_index1 + dout2 * dout_shape[3]
+                filter2 = filter2_tmp - dout2 * stride
+                filter_index2 = filter_index0 + filter2 * filter_shape[3]
+
+                for dout3 in dout3_range:
+                    dout_index = dout_index2 + dout3
+
+                    filter3 = filter3_tmp - dout3 * stride
+                    filter_index = filter_index2 + filter3
+
+                    tmp += filter_array[filter_index] * dout_array[dout_index]
+        
+        dx_array[dx_index] = tmp
+
+
+
+
+
+def partialBackward_old(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape, index, max_index):
     multipler_dx = 1
     multipler_f = 1
     multipler_dout = 1
@@ -459,111 +584,4 @@ def partialBackward(dout_array, dout_shape, filter_array, filter_shape, stride, 
 
             tmp += filter_array[filter_index] * dout_index[dout_index]
         filter_array[filter_index] = tmp
-        
-def partialBackward_dfilter(x_array, x_shape, dout_array, dout_shape, stride, pad, padding, dfilter_array, dfilter_shape, index, max_index):
-    dfilter_index = 0
-    dfilter_index0 = 0
-    dfilter_index1 = 0
-    for f0 in range(dfilter_shape[0]):
-        dfilter_index0 = f0 * 2
-        for f1 in range(dfilter_shape[1]):
-            #dfilter_index1 = f0 + f1 * shape[3] * 1
-            for f2 in range(dfilter_shape[2]):
-                for f3 in range(dfilter_shape[3]):
-                    for x2 in range(dfilter_shape[2]):
-                        for x3 in range(dfilter_shape[3]):
-                            pass
 
-
-
-            
-
-            
-
-
-def partialBackward_old(x_array, dout_array, dout_shape, filter_array, filter_shape, stride, pad, padding, dfilter_array, dbias_array, dx_array, dx_shape, index, max_index):
-    multiplerO = 0
-    multiplerF = 0
-    multiplerDout = 0
-
-    dx_len = len(dx_array)
-    dfilter_len = len(dfilter_array)
-    dbias_len = len(dbias_array)
-    dout_len = 1
-
-    #업데이트 대상이 3개이기 때문에 3개에 대해서 나눠야 함.
-    start = index * 1
-
-    start_dx = index * dx_len // max_index
-    end_dx = (index + 1) * dx_len // max_index
-
-    start_dfilter = index * dfilter_len // max_index
-    end_dfilter = (index + 1) * dfilter_len // max_index
-
-    start_dbias = index * dbias_len // max_index
-    end_dbias = (index + 1) * dbias_len // max_index
-    
-    for dx_index in range(start_dx, end_dx):
-        dx_array[dx_index] = 0
-    
-    for dfilter_index in range(start_dfilter, end_dfilter):
-        dfilter_array[dfilter_index] = 0
-    
-    for dbias_index in range(start_dbias, end_dbias):
-        dbias_array[dbias_index] = 0
-    
-    for dout1 in range(start_dbias, end_dbias):
-        for channel in range(dx_shape[1]):
-            pass
-
-
-    for dout_index in range(len(dout_array) // dout_shape[0] // dout_shape[1]):
-        dout3 = dout_index % dout_shape[3] # dx3
-        multiplerDout = dout_shape[3]
-        dout2 = dout_index // multiplerDout % dout_shape[2] # dx2
-        multiplerDout *= dout_shape[2]
-        dout1 = dout_index // multiplerDout % dout_shape[1] # dbias, dfilter0
-        multiplerDout *= dout_shape[1]
-        dout0 = dout_index // multiplerDout # dx0
-
-        for f in range(len(filter_array) // filter_shape[0]):
-            filter3 = f % filter_shape[3]
-            multiplerF = filter_shape[3]
-            filter2 = f // multiplerF % filter_shape[2]
-            multiplerF *= filter_shape[2]
-            filter1 = f // multiplerF % filter_shape[1]
-            multiplerF *= filter_shape[1]
-            filter0 = dout1
-
-            #최종 filter index
-            filter_index = f + filter0 * multiplerF
-
-            x3 = filter3 + dout3 * stride - pad
-            x2 = filter2 + dout2 * stride - pad
-            x1 = filter1
-            x0 = dout0
-
-            multiplerO = dx_shape[3]
-            x_index = x3
-            x_index += x2 * multiplerO
-            multiplerO *= dx_shape[2]
-            x_index += x1 * multiplerO
-            multiplerO *= dx_shape[1]
-            x_index += x0 * multiplerO
-
-            isPass = (x3 >> 10000) + 1
-            isPass *= (x2 >> 10000) + 1
-            isPass *= 1  + (-(x3 // dx_shape[3]) >> 10000)
-            isPass *= 1  + (-(x2 // dx_shape[2]) >> 10000)
-
-            # 인덱스 오버플로 방지
-            x_index *= isPass
-
-            dx_array[x_index] += isPass * dout_array[dout_index] * filter_array[filter_index]
-            dfilter_array[filter_index] += isPass * dout_array[dout_index] * x_array[x_index]
-            # ??? 아래를 막아야 됨... X가 pad영역일때, filter * padding가 되기 때문에 이 경우의 미분은 아래가 맞지만...
-            # 막아야 편미분한 것과 값이 같아짐....
-            # 왜일까...?
-            #dfilter_array[filter_index] += (1 - isPass) * padding * dout_array[dout_index]
-        dbias_array[dout1] += dout_array[dout_index]
-    return None

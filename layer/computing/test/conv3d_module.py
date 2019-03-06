@@ -13,7 +13,7 @@ def test_compare_alg1(data_shape, filter_shape, stride, pad, padding):
     out1 = tensor.create_zeros(conv3d_module.create_shape(x.shape, filter.shape, stride, pad))
     out2 = tensor.create_zeros(conv3d_module.create_shape(x.shape, filter.shape, stride, pad))
     time1 = time.time_ns()
-    #conv3d_module.forward_old(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out1.array, out1.shape)
+    conv3d_module.forward_test(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out1.array, out1.shape)
     time2 = time.time_ns()
     conv3d_module.forward(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out2.array, out2.shape)
     time3 = time.time_ns()
@@ -49,7 +49,8 @@ def test_conv3d_backward(data_shape, filter_shape, stride, pad, padding):
 
 
     conv3d_module.forward(x.array, x.shape, filter.array, filter.shape, b.array, stride, pad, padding, out.array, out.shape)
-    conv3d_module.backward(x.array, dout.array, dout.shape, filter.array, filter.shape, stride, pad, padding, dfilter.array, db.array, dx.array, dx.shape)
+    #conv3d_module.backward(x.array, dout.array, dout.shape, filter.array, filter.shape, stride, pad, padding, dfilter.array, db.array, dx.array, dx.shape)
+    conv3d_module.backward(dout.array,dout.shape, filter.array, filter.shape, stride, pad, dx.array,dx.shape)
 
     for i in range(len(x.array)):
         origen = x.array[i]
@@ -65,7 +66,7 @@ def test_conv3d_backward(data_shape, filter_shape, stride, pad, padding):
             out2 += out.array[j]
         dx_diff.array[i] = (out1 - out2) / (2 * 0.0001)
         x.array[i] = origen
-    
+    """
     for i in range(len(filter.array)):
         origen = filter.array[i]
         filter.array[i] = origen + 0.0001
@@ -80,16 +81,18 @@ def test_conv3d_backward(data_shape, filter_shape, stride, pad, padding):
             out2 += out.array[j]
         dfilter_diff.array[i] = (out1 - out2) / (2 * 0.0001)
         filter.array[i] = origen
-    
-    print(dx)
-    print(dx_diff)
-    print(dfilter)
-    print(dfilter_diff)
+    """
+    #print(dx)
+    #print(dx_diff)
+    #print(dfilter)
+    #print(dfilter_diff)
+    print(tensor.isSame(dx,dx_diff))
 
 
 #test_conv3d_forward([2,2,5,5], [2,2,3,3],2,1,0)
 
 #test_conv3d_backward([2,2,2,2], [2,2,2,2],1,3,1)
 
-test_compare_alg1([50,3,28,28], [2, 3,5,5],1,2,0)
+#test_compare_alg1([50,3,28,28], [2, 3,5,5],1,2,0)
 
+test_conv3d_backward([2,2,10,10],[2,2,3,3], 2,2,0)
