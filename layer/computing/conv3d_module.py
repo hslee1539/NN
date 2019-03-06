@@ -387,9 +387,8 @@ def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, str
         out_array[out_index] = tmp + bias_array[out_index // multipler_out2 % out_shape[1]]
 
         
-
+"""
 def partialForward_old(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape, index, max_index):
-    """pad : 빈 공간, padding : 빈 공간에 대체되는 수"""
     multipler1 = 0
     multipler2 = 0
     multiplerX = 0
@@ -529,6 +528,61 @@ def backward_old(x_array, dout_array, dout_shape, filter_array, filter_shape, st
         dbias_array[dout1] += dout_array[dout_index]
     return None
 
+def partialBackward_old(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape, index, max_index):
+    multipler_dx = 1
+    multipler_f = 1
+    multipler_dout = 1
+    zero = type(dx_array[0])(0)
+    dx_len = len(dx_array)
+    filter_len = len(filter_array)
+    f_max = filter_len // filter_shape[1]
+
+    start = index * dx_len // max_index
+    end = (index + 1) * dx_len // max_index
+    filter_index = 0
+    dout_index = 0
+
+    for dx_index in range(start, end):
+        dx3 = dx_index % dx_shape[3]
+        multipler_dx = dx_shape[3]
+        dx2 = dx_index // multipler_dx % dx_shape[2]
+        multipler_dx *= dx_shape[2]
+        dx1 = dx_index // multipler_dx % dx_shape[1]
+        multipler_dx *= dx_shape[1]
+        dx0 = dx_index // multipler_dx
+
+        tmp = zero
+
+        for f in range(f_max):
+            f3 = f % filter_shape[3]
+            filter_index = f3
+            multipler_f = filter_shape[3]
+            f2 = f // multipler_f % filter_shape[2]
+            filter_index += f2 * multipler_f
+            multipler_f *= filter_shape[2]
+            f1 = dx1
+            filter_index += f1 * multipler_f
+            f0 = f // multipler_f
+            multipler_f *= filter_shape[1]
+            filter_index += f0 * multipler_f
+
+            dout3 = (dx3 - f3 + pad) // stride
+            dout2 = (dx2 - f2 + pad) // stride
+            dout1 = f1
+            dout0 = dx0
+            
+            dout_index = dout3
+            multipler_dout = dout_shape[3]
+            dout_index += dout2 * multipler_dout
+            multipler_dout *= dout_shape[2]
+            dout_index += dout1 * multipler_dout
+            multipler_dout *= dout_shape[1]
+            dout_index += dout0 * multipler_dout
+
+            tmp += filter_array[filter_index] * dout_index[dout_index]
+        filter_array[filter_index] = tmp
+
+"""
 def backward(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape):
     zero = type(dout_array[0])(0)
     multipler_dout2 = dout_shape[3] * dout_shape[2]
@@ -622,65 +676,96 @@ def backward_bias(dout_array, dout_shape, dbias_array):
                 tmp += dout_array[dout_index0 + dout23]
         dbias_array[dbias_index] = tmp
 
-
-
-
-
-
-
-
-
-def partialBackward_old(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape, index, max_index):
-    multipler_dx = 1
-    multipler_f = 1
-    multipler_dout = 1
-    zero = type(dx_array[0])(0)
-    dx_len = len(dx_array)
-    filter_len = len(filter_array)
-    f_max = filter_len // filter_shape[1]
-
-    start = index * dx_len // max_index
-    end = (index + 1) * dx_len // max_index
-    filter_index = 0
-    dout_index = 0
-
-    for dx_index in range(start, end):
+def partialBackward(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx_array, dx_shape, index, max_index):
+    """dx_array가 max_index와 나눌때, 나머지가 작을 수록 잘 분배 됨."""
+    zero = type(dout_array[0])(0)
+    multipler_dout2 = dout_shape[3] * dout_shape[2]
+    multipler_dout1 = multipler_dout2 * dout_shape[1]
+    multipler_filter2 = filter_shape[3] * filter_shape[2]
+    multipler_filter1 = multipler_filter2 * filter_shape[1]
+    multipler_dx2 = dx_shape[3] * dx_shape[2]
+    multipler_dx1 = multipler_dx2 * dx_shape[1]
+    dout1_range = range(dout_shape[1])
+    for dx_index in range(index * len(dx_array) // max_index, (index + 1) * len(dx_array) // max_index):
         dx3 = dx_index % dx_shape[3]
-        multipler_dx = dx_shape[3]
-        dx2 = dx_index // multipler_dx % dx_shape[2]
-        multipler_dx *= dx_shape[2]
-        dx1 = dx_index // multipler_dx % dx_shape[1]
-        multipler_dx *= dx_shape[1]
-        dx0 = dx_index // multipler_dx
+        dx2 = dx_index // dx_shape[3] % dx_shape[2]
+        tmp = zero
+
+        dx3pad = dx3 + pad
+        dx2pad = dx2 + pad
+
+        dout_index0 = (dx_index // multipler_dx1) * multipler_dout1
+        filter_index1 = (dx_index // multipler_dx2 % dx_shape[1]) * multipler_filter2
+
+        dout3_range = range(max((dx3pad - filter_shape[3]) // stride, -1) + 1, min(-(-(dx3pad + 1)// stride),dout_shape[3]))
+        dout2_range = range(max((dx2pad - filter_shape[2]) // stride, -1) + 1, min(-(-(dx2pad + 1)// stride),dout_shape[2]))
+        
+
+        for dout1 in dout1_range:
+            dout_index1 = dout_index0 + dout1 * multipler_dout2
+            filter_index0 = filter_index1 + dout1 * multipler_filter1
+        
+            for dout2 in dout2_range:
+                dout_index2 = dout_index1 + dout2 * dout_shape[3]
+                filter_index2 = filter_index0 + (dx2pad - dout2 * stride) * filter_shape[3]
+
+                for dout3 in dout3_range:
+                    tmp += filter_array[filter_index2 + dx3pad - dout3 * stride] * dout_array[dout_index2 + dout3]
+        
+        dx_array[dx_index] = tmp
+
+def partialBackward_filter(dout_array, dout_shape, x_array, x_shape, stride, pad, padding, dfilter_array, dfilter_shape, index, max_index):
+    zero = type(dfilter_array[0])(0)
+    multipler_dout2 = dout_shape[3] * dout_shape[2]
+    multipler_dout1 = multipler_dout2 * dout_shape[1]
+    multipler_dfilter2 = dfilter_shape[3] * dfilter_shape[2]
+    multipler_dfilter1 = multipler_dfilter2 * dfilter_shape[1]
+    multipler_x2 = x_shape[3] * x_shape[2]
+    multipler_x1 = multipler_x2 * x_shape[1]
+    dout0_range = range(dout_shape[0])
+    dout2_range = range(dout_shape[2])
+    dout3_range = range(dout_shape[3])
+
+    for dfilter_index in range(index * len(dfilter_array) // max_index, (index + 1) * len(dfilter_array) // max_index):
+        x_tmp2 = (dfilter_index // dfilter_shape[3] % dfilter_shape[2]) - pad
+        x_tmp3 = (dfilter_index % dfilter_shape[3]) - pad
+
+        dout_index1 = (dfilter_index // multipler_dfilter1) * multipler_dout2
+        x_index1 = (dfilter_index // multipler_dfilter2 % dfilter_shape[1]) * multipler_x2
 
         tmp = zero
 
-        for f in range(f_max):
-            f3 = f % filter_shape[3]
-            filter_index = f3
-            multipler_f = filter_shape[3]
-            f2 = f // multipler_f % filter_shape[2]
-            filter_index += f2 * multipler_f
-            multipler_f *= filter_shape[2]
-            f1 = dx1
-            filter_index += f1 * multipler_f
-            f0 = f // multipler_f
-            multipler_f *= filter_shape[1]
-            filter_index += f0 * multipler_f
+        for dout0 in dout0_range:
+            dout_index0 = dout_index1 + dout0 * multipler_dout1
+            x_index0 = x_index1 + dout0 * multipler_x1
+            for dout2 in dout2_range:
+                dout_index2 = dout_index0 + dout2 * dout_shape[3]
+                x2 = x_tmp2 + dout2 * stride
+                x_index2 = x_index0 + x2 * x_shape[3]
+                if((-1 < x2) & (x2 < x_shape[2])):
+                    for dout3 in dout3_range:
+                        x3 = x_tmp3 + dout3 * stride
+                        if((-1 < x3) & (x3 < x_shape[3])):
+                            tmp += x_array[x_index2 + x3] * dout_array[dout_index2 + dout3]
+                        else:
+                            tmp += padding * dout_array[dout_index2 + dout3]
+                else:
+                    for dout3 in dout3_range:
+                        tmp += padding * dout_array[dout_index2 + dout3]
+        dfilter_array[dfilter_index] = tmp
+    return None
 
-            dout3 = (dx3 - f3 + pad) // stride
-            dout2 = (dx2 - f2 + pad) // stride
-            dout1 = f1
-            dout0 = dx0
-            
-            dout_index = dout3
-            multipler_dout = dout_shape[3]
-            dout_index += dout2 * multipler_dout
-            multipler_dout *= dout_shape[2]
-            dout_index += dout1 * multipler_dout
-            multipler_dout *= dout_shape[1]
-            dout_index += dout0 * multipler_dout
-
-            tmp += filter_array[filter_index] * dout_index[dout_index]
-        filter_array[filter_index] = tmp
-
+def partialBackward_bias(dout_array, dout_shape, dbias_array, index, max_index):
+    zero = type(dbias_array[0])(0)
+    dout0_range = range(dout_shape[0])
+    dout23_range = range(dout_shape[2] * dout_shape[3])
+    multipler_dout2 = dout_shape[3] * dout_shape[2]
+    multipler_dout1 = multipler_dout2 * dout_shape[1]
+    for dbias_index in range(index * len(dbias_array) // max_index, (index + 1) * len(dbias_array) // max_index):
+        tmp = zero
+        dout_index2 = dbias_index * multipler_dout2
+        for dout0 in dout0_range:
+            dout_index0 = dout_index2 + dout0 * multipler_dout1
+            for dout23 in dout23_range:
+                tmp += dout_array[dout_index0 + dout23]
+        dbias_array[dbias_index] = tmp

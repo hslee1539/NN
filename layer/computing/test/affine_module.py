@@ -3,7 +3,28 @@ sys.path.append(__file__.replace("NN\\layer\\computing\\test\\affine_module.py",
 import tensor
 import NN
 import random
+import time
 rd = random.randint
+
+def test_alg(data_shape, w_shape):
+    x = tensor.create_gauss(data_shape)
+    w = tensor.create_gauss(w_shape)
+    b = tensor.create_gauss([w_shape[-1]])
+
+    out = tensor.create_matrix_product(x,w)
+    out_test = out.copy()
+    time1 = time.time_ns()
+    NN.layer.computing.affine_module.forward(x.array, w.array, b.array, out.array)
+    time2 = time.time_ns()
+    NN.layer.computing.affine_module.partialForward(x.array, w.array, b.array, out_test.array, 0,1)
+    time3 = time.time_ns()
+    print('{0}, {1}'.format(time2 - time1, time3 - time2))
+    print('{0}'.format(tensor.isSame(out, out_test)))
+
+
+    
+test_alg([100,1024], [1024,25])
+
 
 def test(data_shape, w_shape):
     x = tensor.create_gauss(data_shape)
@@ -134,7 +155,9 @@ def test2(data_shape, w_shape):
     print('최종 w 편미분 결과')
     print(dw2)
 
-test2([4,3],[3,2])
+#test2([4,3],[3,2])
+
+
 
 
 

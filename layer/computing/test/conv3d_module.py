@@ -13,7 +13,7 @@ def test_compare_alg1(data_shape, filter_shape, stride, pad, padding):
     out1 = tensor.create_zeros(conv3d_module.create_shape(x.shape, filter.shape, stride, pad))
     out2 = tensor.create_zeros(conv3d_module.create_shape(x.shape, filter.shape, stride, pad))
     time1 = time.time_ns()
-    conv3d_module.forward_test(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out1.array, out1.shape)
+    #conv3d_module.forward_test(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out1.array, out1.shape)
     time2 = time.time_ns()
     conv3d_module.forward(x.array, x.shape, filter.array, filter.shape, bias.array,stride, pad, padding, out2.array, out2.shape)
     time3 = time.time_ns()
