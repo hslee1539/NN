@@ -2,25 +2,58 @@ from .computing import cross_entropy_module as computing
 from . import interface_module
 import tensor
 
-class CrossEntropy (interface_module.Forwardable, interface_module.BackwardStartable):
-    """크로스 엔트로피 레이어입니다. loss계산은 하지 않습니다."""
+class CrossEntropy (interface_module.PartialBackwardable):
+    """크로스 엔트로피 레이어입니다. forward의 결과를 그대로 보냅니다."""
     def __init__(self):
         self.dx = tensor.Tensor([0], [1,1])
         self.x = None
+        self.out = 0
+        self.dout = None
+        self.t = None
+        self.max_index = 0
     
-    def forward(self, x):
+    def initForward(self, x):
         self.x = x
-        return x
+        return self.out
     
-    def forward_line(self, x):
-        self.x = x
-        return x
+    def forward(self):
+        return self.x
     
-    def startBackward(self, t):
-        if(dx.shape[0] != t.shape[0]):
-            dx = tensor.create_zeros(t.shape)
-        return self.startBackward_line(t)
-    
-    def startBackward_line(self, t):
-        computing.backward(self.x.array, t.array, self.dx.array)
+    def initBackward(self, dout, t):
+        if(self.dx.shape[0] != t.shape[0]):
+            self.dx = tensor.create_zeros(t.shape)
+        
+        if(type(dout) == tensor.Tensor):
+            if(len(dout.array) == len(t.array)):
+                self.backward = self._backward2
+                self.partialBackward = self._partialBackward2
+            else:
+                self.backward = self._backward1
+                self.partialBackward = self._partialBackward1
+            
+        self.dout = dout
+        self.t = t
         return self.dx
+    
+    def _backward1(self):
+        computing.backward(self.x.array, self.t.array, self.dx.array)
+        return self.dx
+    
+    def _backward2(self):
+        computing.backward_with_dout(self.dout.array, self.x.array, self.t.array, self.dx.array)
+        return self.dx
+    
+    def initPartial(self, max_index):
+        self.max_index = max_index
+    
+    def partialForward(self, index):
+        return self.x
+    
+    def _partialBackward1(self, index):
+        computing.partialBackward(self.x.array, self.t.array, self.dx.array, index, self.max_index)
+        return self.dx
+    
+    def _partialBackward2(self, index):
+        computing.partialBackward_with_dout(self.dout.array, self.x.array, self.t.array, self.dx.array, index, self.max_index)
+        return self.dx
+    
