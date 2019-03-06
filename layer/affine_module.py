@@ -57,8 +57,8 @@ class Affine(interface_module.Updatable, interface_module.PartialUpdatable):
     def partialUpdate(self, optimizer, index):
         computing.partialBackward_dw(self.x, self.x.shape, self.dout.array, self.dw.array, self.dw.shape, index, self.max_index)
         computing.partialBackward_db(self.dout.array, self.db.array, index, self.max_index)
-        optimizer.partialUpdate(self.w, self.dw, index)
-        optimizer.partialUpdate(self.b, self.db, index)
+        optimizer.partialUpdate(self.w, self.dw, index, self.max_index)
+        optimizer.partialUpdate(self.b, self.db, index, self.max_index)
         return None
 
 
