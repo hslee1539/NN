@@ -1,9 +1,8 @@
 def create_shape(x_shape, filter_shape, stride, pad):
     shape = [x_shape[0], filter_shape[0], (x_shape[2] + 2 * pad - filter_shape[2]) // stride + 1, (x_shape[3] + 2 * pad - filter_shape[3]) // stride + 1]
     return shape
-
+"""
 def forward_old(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
-    """pad : 빈 공간, padding : 빈 공간에 대체되는 수"""
     multipler1 = 0
     multipler2 = 0
     multiplerX = 0
@@ -270,7 +269,7 @@ def forward_old6(x_array, x_shape, filter_array, filter_shape, bias_array, strid
 # i5-7200u cpu 기준으로 아래로 4중첩 for문을 한개로 줄이는게 미세하게 빠름
 # 그리고 분할 계산 구현에 매우 좋음. (shape[0] vs array라 분할 갯수와 나눌때 이쪽이 0에 더 근접함.(0에 근접할 수록 계산량이 평등하게됨.))
 # 결론은 가장 많이 연산이 될 하위 for문들만 다이어트 해주면 됨.
-def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
+def forward_old7(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
     """"""
     zero = type(out_array[0])(0)
     multipler_out2 = out_shape[3] * out_shape[2]
@@ -305,6 +304,47 @@ def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pa
                 else:
                     tmp += padding * filter_shape[3]
         out_array[out_index] = tmp + bias_array[out_index // multipler_out2 % out_shape[1]]
+"""
+#range 객체가 계속 생성하는 것을 방지.
+def forward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape):
+    """"""
+    zero = type(out_array[0])(0)
+    multipler_out2 = out_shape[3] * out_shape[2]
+    multipler_out1 = multipler_out2 * out_shape[1]
+    multipler_filter2 = filter_shape[3] * filter_shape[2]
+    multipler_filter1 = multipler_filter2 * filter_shape[1]
+    multipler_x2 = x_shape[3] * x_shape[2]
+    multipler_x1 = multipler_x2 * x_shape[1]
+    f1_range = range(filter_shape[1])
+    f2_range = range(filter_shape[2])
+    f3_range = range(filter_shape[3])
+    for out_index in range(len(out_array)):
+        o0 = out_index // multipler_out1 % out_shape[0]
+
+        filter_index0 = (out_index // multipler_out2 % out_shape[1]) * multipler_filter1
+        x2_tmp = (out_index // out_shape[3] % out_shape[2]) * stride - pad
+        x3_tmp = (out_index % out_shape[3]) * stride - pad
+        tmp = zero
+        for f1 in f1_range:
+            filter_index1 = filter_index0 + f1 * multipler_filter2
+            x_index1 = o0 * multipler_x1 + f1 * multipler_x2
+            for f2 in f2_range:
+                filter_index2 = filter_index1 + f2 * filter_shape[3]
+                x2 = f2 + x2_tmp
+                x_index2 = x_index1 + x2 * x_shape[3]
+
+                #isPass2 = (-1 < x2) & (x2 < x_shape[2])
+                if((-1 < x2) & (x2 < x_shape[2])):
+                    for f3 in f3_range:
+                        x3 = f3 + x3_tmp
+                        if((-1 < x3) & (x3 < x_shape[3])):
+                            tmp += x_array[x_index2 + x3] * filter_array[filter_index2 + f3]
+                        else:
+                            tmp += padding * filter_array[filter_index2 + f3]
+                else:
+                    for f3 in f3_range:
+                        tmp += padding * filter_array[filter_index2 + f3]
+        out_array[out_index] = tmp + bias_array[out_index // multipler_out2 % out_shape[1]]
 
 
 def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape, index, max_index):
@@ -316,6 +356,9 @@ def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, str
     multipler_filter1 = multipler_filter2 * filter_shape[1]
     multipler_x2 = x_shape[3] * x_shape[2]
     multipler_x1 = multipler_x2 * x_shape[1]
+    f1_range = range(filter_shape[1])
+    f2_range = range(filter_shape[2])
+    f3_range = range(filter_shape[3])
     for out_index in range(index * len(out_array) // max_index, (index + 1) * len(out_array) // max_index):
         o0 = out_index // multipler_out1 % out_shape[0]
 
@@ -323,17 +366,17 @@ def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, str
         x2_tmp = (out_index // out_shape[3] % out_shape[2]) * stride - pad
         x3_tmp = (out_index % out_shape[3]) * stride - pad
         tmp = zero
-        for f1 in range(filter_shape[1]):
+        for f1 in f1_range:
             filter_index1 = filter_index0 + f1 * multipler_filter2
             x_index1 = o0 * multipler_x1 + f1 * multipler_x2
-            for f2 in range(filter_shape[2]):
+            for f2 in f2_range:
                 filter_index2 = filter_index1 + f2 * filter_shape[3]
                 x2 = f2 + x2_tmp
                 x_index2 = x_index1 + x2 * x_shape[3]
 
                 #isPass2 = (-1 < x2) & (x2 < x_shape[2])
                 if((-1 < x2) & (x2 < x_shape[2])):
-                    for f3 in range(filter_shape[3]):
+                    for f3 in f3_range:
                         x3 = f3 + x3_tmp
                         if((-1 < x3) & (x3 < x_shape[3])):
                             tmp += x_array[x_index2 + x3] * filter_array[filter_index2 + f3]
@@ -342,6 +385,8 @@ def partialForward(x_array, x_shape, filter_array, filter_shape, bias_array, str
                 else:
                     tmp += padding * filter_shape[3]
         out_array[out_index] = tmp + bias_array[out_index // multipler_out2 % out_shape[1]]
+
+        
 
 def partialForward_old(x_array, x_shape, filter_array, filter_shape, bias_array, stride, pad, padding, out_array, out_shape, index, max_index):
     """pad : 빈 공간, padding : 빈 공간에 대체되는 수"""
@@ -492,40 +537,80 @@ def backward(dout_array, dout_shape, filter_array, filter_shape, stride, pad, dx
     multipler_filter1 = multipler_filter2 * filter_shape[1]
     multipler_dx2 = dx_shape[3] * dx_shape[2]
     multipler_dx1 = multipler_dx2 * dx_shape[1]
+    dout1_range = range(dout_shape[1])
     for dx_index in range(len(dx_array)):
         dx3 = dx_index % dx_shape[3]
         dx2 = dx_index // dx_shape[3] % dx_shape[2]
-        dx1 = dx_index // multipler_dx2 % dx_shape[1]
-        dx0 = dx_index // multipler_dx1
         tmp = zero
-        filter2_tmp = dx2 + pad
-        filter3_tmp = dx3 + pad
 
-        dout_index0 = dx0 * multipler_dout1
-        filter_index1 = dx1 * multipler_filter2
+        dx3pad = dx3 + pad
+        dx2pad = dx2 + pad
 
-        dout3_range = range(max((dx3 + pad - filter_shape[3]) // stride, -1) + 1, min(-(-(dx3 + pad + 1)// stride),dout_shape[3]))
-        dout2_range = range(max((dx2 + pad - filter_shape[2]) // stride, -1) + 1, min(-(-(dx2 + pad + 1)// stride),dout_shape[2]))
+        dout_index0 = (dx_index // multipler_dx1) * multipler_dout1
+        filter_index1 = (dx_index // multipler_dx2 % dx_shape[1]) * multipler_filter2
+
+        dout3_range = range(max((dx3pad - filter_shape[3]) // stride, -1) + 1, min(-(-(dx3pad + 1)// stride),dout_shape[3]))
+        dout2_range = range(max((dx2pad - filter_shape[2]) // stride, -1) + 1, min(-(-(dx2pad + 1)// stride),dout_shape[2]))
         
 
-        for dout1 in range(dout_shape[1]):
+        for dout1 in dout1_range:
             dout_index1 = dout_index0 + dout1 * multipler_dout2
             filter_index0 = filter_index1 + dout1 * multipler_filter1
         
             for dout2 in dout2_range:
                 dout_index2 = dout_index1 + dout2 * dout_shape[3]
-                filter2 = filter2_tmp - dout2 * stride
-                filter_index2 = filter_index0 + filter2 * filter_shape[3]
+                filter_index2 = filter_index0 + (dx2pad - dout2 * stride) * filter_shape[3]
 
                 for dout3 in dout3_range:
-                    dout_index = dout_index2 + dout3
-
-                    filter3 = filter3_tmp - dout3 * stride
-                    filter_index = filter_index2 + filter3
-
-                    tmp += filter_array[filter_index] * dout_array[dout_index]
+                    tmp += filter_array[filter_index2 + dx3pad - dout3 * stride] * dout_array[dout_index2 + dout3]
         
         dx_array[dx_index] = tmp
+
+def backward_filter(dout_array, dout_shape, x_array, x_shape, stride, pad, padding, dfilter_array, dfilter_shape):
+    zero = type(dfilter_array[0])(0)
+    multipler_dout2 = dout_shape[3] * dout_shape[2]
+    multipler_dout1 = multipler_dout2 * dout_shape[1]
+    multipler_dfilter2 = dfilter_shape[3] * dfilter_shape[2]
+    multipler_dfilter1 = multipler_dfilter2 * dfilter_shape[1]
+    multipler_x2 = x_shape[3] * x_shape[2]
+    multipler_x1 = multipler_x2 * x_shape[1]
+    dout0_range = range(dout_shape[0])
+    dout2_range = range(dout_shape[2])
+    dout3_range = range(dout_shape[3])
+
+    for dfilter_index in range(len(dfilter_array)):
+        x_tmp2 = (dfilter_index // dfilter_shape[3] % dfilter_shape[2]) - pad
+        x_tmp3 = (dfilter_index % dfilter_shape[3]) - pad
+
+        dout_index1 = (dfilter_index // multipler_dfilter1) * multipler_dout2
+        x_index1 = (dfilter_index // multipler_dfilter2 % dfilter_shape[1]) * multipler_x2
+
+        tmp = zero
+
+        for dout0 in dout0_range:
+            dout_index0 = dout_index1 + dout0 * multipler_dout1
+            x_index0 = x_index1 + dout0 * multipler_x1
+            for dout2 in dout2_range:
+                dout_index2 = dout_index0 + dout2 * dout_shape[3]
+                x2 = x_tmp2 + dout2 * stride
+                x_index2 = x_index0 + x2 * x_shape[3]
+                if((-1 < x2) & (x2 < x_shape[2])):
+                    for dout3 in dout3_range:
+                        x3 = x_tmp3 + dout3 * stride
+                        if((-1 < x3) & (x3 < x_shape[3])):
+                            tmp += x_array[x_index2 + x3] * dout_array[dout_index2 + dout3]
+                        else:
+                            tmp += padding * dout_array[dout_index2 + dout3]
+                else:
+                    for dout3 in dout3_range:
+                        tmp += padding * dout_array[dout_index2 + dout3]
+        dfilter_array[dfilter_index] = tmp
+    return None
+
+
+
+
+
 
 
 
