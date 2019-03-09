@@ -1,91 +1,58 @@
-from .layer import interface_module
 import tensor
+import NN as nn
 
-class Network(interface_module.Forwardable, interface_module.Backwardable, interface_module.ForwardStartable, interface_module.BackwardStartable, interface_module.Updatable):
-    def __init__(self):
+class Network(nn.layer.Network):
+    """NN.layer.Network에 추가 기능을 더한 Network입니다."""
+    def __init__(self, *input):
+        """입력 뉴런 구조를 정의하여 인공신경망 네트워크를 만듭니다."""
+        nn.layer.Network.__init__(self)
+        self.input = list(input)
 
-        # 사용된 모든 레이어
-        self.layers = []
-        # 옵티마이저에 의한 업데이트가 필요한 레이어들
-        self.updatable_layers = []
-        # 순전파를 하는 레이어들(순서 중요)
-        self.forwardable_layers = []
-        # 역전파를 하는 레이어들(순서 중요)
-        self.backwardable_layers = []
-
-        # 테이블을 가지고 역전파를 할 레이어
-        self.backwardStartable_layer = None
-
-    def append(self, layer):
-        self.layers.append(layer)
-        for base in type(layer).__bases__:
-            if(base == interface_module.Forwardable):
-                self.forwardable_layers.append(layer)
-                
-            if(base == interface_module.Backwardable):
-                self.backwardable_layers.append(layer)
-                #self.backwardable_layers = [layer] + self.backwardable_layers
-                
-            if(base == interface_module.Updatable):
-                self.updatable_layers.append(layer)
-
-            if(base == interface_module.BackwardStartable):
-                self.backwardStartable_layer = layer
-
-        return self
-
-    def append_list(self, *layers):
-        for layer in layers:
-            self.append(layer)
-        return self
-
-    def forward(self, x):
-        for layer in self.forwardable_layers:
-            x = layer.forward(x)
-        return x
-
-    def forward_line(self, x):
-        for layer in self.forwardable_layers:
-            x = layer.forward_line(x)
-        return x
-
-    def backward(self, dx):
-        for layer in self.backwardable_layers:
-            dx = layer.backward(dx)
-        return dx
-
-    def backward_line(self, dx):
-        for layer in self.backwardable_layers:
-            dx = layer.backward_line(dx)
-        return dx
-
-    def startForward(self, x):
-        for layer in self.forwardable_layers:
-            x = layer.forward(x)
-        return x
+    def append_affine(self, *output):
+        """출력 뉴런 구조를 정의하여 affine레이어를 뒤에 추가합니다."""
+        tmp = self.input.pop()
+        while(len(self.input) != 0):
+            tmp *= self.input.pop()
+        self.input.append(tmp)
+        self.input.extend(output)
+        w = tensor.create_gauss(self.input)
+        self.input = list(output)
+        b = tensor.create_zeros(self.input)
+        self.input = self.input.copy()
+        return self.append(nn.layer.Affine(w,b))
     
-    def startForward_line(self ,x):
-        for layer in self.forwardable_layers:
-            x = layer.forward_line(x)
-        return x
-
-    def startBackward(self, t):
-        dx = self.backwardStartable_layer.startBackward(t)
-        for i in range(len(self.backwardable_layers) -2, -1, -1):
-            dx = self.backwardable_layers[i].backward(dx)
-
-        return dx
-
-    def startBackward_line(self, t):
-        dx = self.backwardStartable_layer.startBackward_line(t)
-        for i in range(len(self.backwardable_layers) -2, -1, -1):
-            dx = self.backwardable_layers[i].backward_line(dx)
-
-        return dx
-
-    def update(self, optimizer):
-        for layer in self.updatable_layers:
-            layer.update(optimizer)
-        return None
-
+    def append_batchnormalization(self):
+        """뉴런들 값을 정규화하는 batch normalization 레이어를 뒤에 추가합니다. 정규화만 하고, shift 과정은 하지 않습니다."""
+        return self.append(nn.layer.Batchnormalization())
     
+    def append_convolution(self, stride, pad, padding, *output):
+        """stride(filter 이동 간격 크기), pad(빈 공간 크기), padding(빈 공간 값)과 출력 뉴런 구조를 정의하여 conv3d 레이어를 뒤에 추가합니다."""
+        input_shape = [1,1,1]
+        for c in range(len(self.input)):
+            input_shape[-1 -c] = self.input[-1 -c]
+        output_shape = [1,1,1]
+        for c in range(len(output)):
+            output_shape[-1 -c] = output[-1 -c]
+        filter = tensor.create_gauss([output_shape[0], input_shape[0], input_shape[1] + 2 * pad + stride - stride * output_shape[1], input_shape[2] + 2 * pad + stride - stride * output_shape[2]])
+        bias = tensor.create_gauss([output_shape[0],1,1])
+        self.input = list(output)
+        return self.append(nn.layer.Conv3d(filter, bias, stride, pad, padding))
+    
+    def append_cross_entropy(self):
+        return self.append(nn.layer.CrossEntropy())
+    
+    def append_relu(self):
+        return self.append(nn.layer.Relu())
+    
+    def append_shift(self):
+        """가중치와 편향으로 이동시키는 레이어를 추가합니다."""
+        w = tensor.create_ones(self.input)
+        b = tensor.create_zeros(self.input)
+        return self.append(nn.layer.Shift(w,b))
+    
+    def append_sigmoid(self):
+        return self.append(nn.layer.Sigmoid())
+    
+    def append_softmax(self):
+        """cross entropy를 지원하는 softmax 레이어를 뒤에 추가합니다."""
+        return self.append(nn.layer.Softmax())

@@ -9,4 +9,9 @@ class SGD(interface_module.Base):
         for i in range(len(base.array)):
             base.array[i] -= self.learning_rate * delta.array[i]
         return None
+
+    def partialUpdate(self, base, delta, index, max_index):
+        for i in range(index * len(base.array) // max_index, (index + 1) * len(base.array) // max_index):
+            base.array[i] -= self.learning_rate * delta.array[i]
+        yield index
     

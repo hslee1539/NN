@@ -9,7 +9,7 @@ class Batchnormalization(interface_module.PartialBackwardable):
         self.dispersion = None
         self.x = None
         self.dout = None
-        self.max_index = 0
+        self.max_index = 0 
 
     def initForward(self, x):
         if(self.out.shape[0] != x.shape[0]):
@@ -17,6 +17,10 @@ class Batchnormalization(interface_module.PartialBackwardable):
             self.dispersion = tensor.create_zeros([len(x.array) // x.shape[0]])
         self.x = x
         return self.out
+    
+    def setX(self, x):
+        self.x = x
+        return self
 
     def forward(self):
         computing.forward(self.x.array, self.x.shape, self.dispersion.array, self.out.array)
@@ -36,11 +40,10 @@ class Batchnormalization(interface_module.PartialBackwardable):
     
     def partialForward(self, index):
         computing.partialForward(self.x.array, self.x.shape, self.dispersion.array, self.out.array, index, self.max_index)
-        return None
+        yield 0
 
     def partialBackward(self, index):
         computing.partialBackward(self.dout.array, self.dispersion.array, self.out.array, index, self.max_index)
-        return None
-    
+        yield 0
 
     

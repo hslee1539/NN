@@ -5,12 +5,16 @@ class Forwardable:
 
     def forward(self):
         raise NotImplementedError
+    
+    def setX(self, x):
+        raise NotImplementedError
 
 class PartialForwardable(Forwardable):
     def initPartial(self, max_index):
         raise NotImplementedError
     
     def partialForward(self, index):
+        """동기화가 필요한 시점에서 yield합니다."""
         raise NotImplementedError
 
 class Backwardable:
@@ -19,6 +23,9 @@ class Backwardable:
         raise NotImplementedError
 
     def backward(self):
+        raise NotImplementedError
+
+    def setT(self, t):
         raise NotImplementedError
 
 class PartialBackwardable(Backwardable, PartialForwardable):
@@ -35,10 +42,7 @@ class Updatable:
 
 class PartialUpdatable(PartialBackwardable):
     def partialUpdate(self, optimizer, index):
-        raise NotImplementedError
-
-class Learnable:
-    def learn(self, t):
+        """동기화가 필요한 시점에서 yield합니다."""
         raise NotImplementedError
 
 

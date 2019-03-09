@@ -16,6 +16,10 @@ class Conv3d(interface_module.Updatable,interface_module.PartialUpdatable):
         self.pad = pad
         self.padding = padding
         self.max_index = 0
+    
+    def setX(self, x):
+        self.x = x
+        return self
 
     def initForward(self, x):
         if(x.shape[0] != self.out.shape[0]):
@@ -37,11 +41,11 @@ class Conv3d(interface_module.Updatable,interface_module.PartialUpdatable):
     
     def backward(self):
         computing.backward(self.dout.array, self.dout.shape, self.filter.array, self.filter.shape, self.stride, self.pad, self.dx.array, self.dx.shape)
+        computing.backward_filter(self.dout.array, self.dout.shape, self.x.array, self.x.shape, self.stride, self.pad, self.padding, self.dfilter.array, self.dfilter.shape)
+        computing.backward_bias(self.dout.array, self.dout.shape, self.dbias.array)
         return self.dx
     
     def update(self, optimizer):
-        computing.backward_filter(self.dout.array, self.dout.shape, self.x.array, self.x.shape, self.stride, self.pad, self.padding, self.dfilter.array, self.dfilter.shape)
-        computing.backward_bias(self.dout.array, self.dout.shape, self.dbias.array)
         optimizer.update(self.filter, self.dfilter)
         optimizer.update(self.bias, self.dbias)
         return None
@@ -51,15 +55,16 @@ class Conv3d(interface_module.Updatable,interface_module.PartialUpdatable):
     
     def partialForward(self, index):
         computing.partialForward(self.x.array, self.x.shape, self.filter.array, self.filter.shape, self.bias.array, self.stride, self.pad, self.padding, self.out.array, self.out.shape, index, self.max_index)
-        return self.out
+        yield 0
     
     def partialBackward(self, index):
         computing.partialBackward(self.dout.array, self.dout.shape, self.filter.array, self.filter.shape, self.stride, self.pad, self.dx.array, self.dx.shape, index, self.max_index)
-        return self.dx
-    
-    def partialUpdate(self, optimizer, index):
         computing.partialBackward_filter(self.dout.array, self.dout.shape, self.x.array, self.x.shape, self.stride, self.pad, self.padding, self.dfilter.array, self.dfilter.shape, index, self.max_index)
         computing.partialBackward_bias(self.dout.array, self.dout.shape, self.dbias.array, index, self.max_index)
+        yield 0
+    
+    def partialUpdate(self, optimizer, index):
         optimizer.partialUpdate(self.filter, self.dfilter, index, self.max_index)
         optimizer.partialUpdate(self.bias, self.dbias, index, self.max_index)
+        yield 0
     

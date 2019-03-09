@@ -16,14 +16,14 @@ def test_alg(data_shape, w_shape):
     time1 = time.time_ns()
     NN.layer.computing.affine_module.forward(x.array, w.array, b.array, out.array)
     time2 = time.time_ns()
-    NN.layer.computing.affine_module.partialForward(x.array, w.array, b.array, out_test.array, 0,1)
+    NN.layer.computing.affine_module.forward_old1(x.array, w.array, b.array, out_test.array)
     time3 = time.time_ns()
     print('{0}, {1}'.format(time2 - time1, time3 - time2))
     print('{0}'.format(tensor.isSame(out, out_test)))
 
 
     
-test_alg([100,1024], [1024,25])
+#test_alg([100,300], [300,25])
 
 
 def test(data_shape, w_shape):
@@ -37,8 +37,6 @@ def test(data_shape, w_shape):
         t.array[i * t.shape[1] + random.randint(0, t.shape[1] - 1)] = 1 
     
     out_sigmoid = out_affine.copy()
-    print('원핫 테이블')
-    print(t)
 
     dw1 = w.copy()
     dw2 = w.copy()
@@ -54,7 +52,8 @@ def test(data_shape, w_shape):
     NN.layer.computing.cross_entropy_module.backward(out_sigmoid.array, t.array, dout_sigmoid.array)
     NN.layer.computing.sigmoid_module.backward(dout_sigmoid.array, out_sigmoid.array)
     NN.layer.computing.affine_module.backward(out_sigmoid.array, w.array, w.shape, dout1.array)
-    NN.layer.computing.affine_module.backward_variables(x.array, out_sigmoid.array, dw1.array, db1.array)
+    #NN.layer.computing.affine_module.backward_variables(x.array, out_sigmoid.array, dw1.array, db1.array)
+    NN.layer.computing.affine_module.backward_dw(x.array, x.shape, out_sigmoid.array, dw1.array, dw1.shape)
 
     for i in range(len(x.array)):
         origen = x.array[i]
@@ -83,7 +82,7 @@ def test(data_shape, w_shape):
         out2 = NN.layer.computing.cross_entropy_module.forward(out_sigmoid.array, t.array)
         dw2.array[i] = (out1 - out2) / (2 * 0.0001)
         w.array[i] = origen
-    
+    """
     print("최종 역전파 결과")
     print(dout1)
     print("편미분 최정 결과")
@@ -92,6 +91,11 @@ def test(data_shape, w_shape):
     print(dw1)
     print('최종 w 편미분 결과')
     print(dw2)
+    """
+    print(tensor.isSame(dout1, dout2))
+    print(tensor.isSame(dw1, dw2))
+
+test([5,23],[23,3])
 
 def test2(data_shape, w_shape):
     x = tensor.create_gauss(data_shape)

@@ -11,10 +11,18 @@ class CrossEntropy (interface_module.PartialBackwardable):
         self.dout = None
         self.t = None
         self.max_index = 0
+
+    def setX(self, x):
+        self.x = x
+        return self
+    
+    def setT(self, t):
+        self.t = t
+        return self
     
     def initForward(self, x):
         self.x = x
-        return self.out
+        return self.x
     
     def forward(self):
         return self.x
@@ -27,9 +35,9 @@ class CrossEntropy (interface_module.PartialBackwardable):
             if(len(dout.array) == len(t.array)):
                 self.backward = self._backward2
                 self.partialBackward = self._partialBackward2
-            else:
-                self.backward = self._backward1
-                self.partialBackward = self._partialBackward1
+        else:
+            self.backward = self._backward1
+            self.partialBackward = self._partialBackward1
             
         self.dout = dout
         self.t = t
@@ -47,13 +55,13 @@ class CrossEntropy (interface_module.PartialBackwardable):
         self.max_index = max_index
     
     def partialForward(self, index):
-        return self.x
-    
+        yield 0
+
     def _partialBackward1(self, index):
         computing.partialBackward(self.x.array, self.t.array, self.dx.array, index, self.max_index)
-        return self.dx
+        yield 0
     
     def _partialBackward2(self, index):
         computing.partialBackward_with_dout(self.dout.array, self.x.array, self.t.array, self.dx.array, index, self.max_index)
-        return self.dx
+        yield 0
     

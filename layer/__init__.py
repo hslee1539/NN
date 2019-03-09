@@ -10,3 +10,4 @@ from .shift_module import Shift
 from .batchnormalization_module import Batchnormalization
 from .conv3d_module import Conv3d
 from .cross_entropy_module import CrossEntropy
+from .network_module import Network

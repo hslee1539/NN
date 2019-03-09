@@ -2,52 +2,48 @@ import tensor
 import NN as nn
 
 class Learner:
-    def __init__(self, x, t, network, optimizer, batch_size):
-        self.__x = x
-        self.__t = t
+    def __init__(self, data = nn.Dataset(tensor.Tensor([1],[1]), tensor.Tensor([1],[1])), network = nn.Network(), optimizer = nn.optimizer.SGD(0.01)):
+        self.data = data
         self.network = network
         self.optimizer = optimizer
-        self.__batch_size = batch_size
-        x_batch_shape = x.shape.copy()
-        t_batch_shape = t.shape.copy()
-        x_batch_shape[0] = batch_size
-        t_batch_shape[0] = batch_size
-        self.__x_batch = tensor.create_zeros(x_batch_shape)
-        self.__t_batch = tensor.create_zeros(t_batch_shape)
-        self.__all_index = tensor.create_arange(0, x.shape[0])
-        self.__select_index = tensor.create_zeros([batch_size], int)
 
-    def init(self):
+    def init(self, batch_size, max_index = 1):
+        """네트워크를 배치에 맞게 초기화 합니다."""
         # 네트워크 내부 변수들 초기화용
-        print(self.__x_batch.shape)
-        self.network.forward(self.__x_batch)
-        self.network.startBackward(self.__t_batch)
+        self.data.init(batch_size)
+        self.network.initForward(self.data.x_batch)
+        self.network.initBackward(1, self.data.y_batch)
+        self.network.initPartial(max_index)
+        return self
 
-    def learn(self, epoch):
-        # 학습 시작
+    def learn(self, epoch, isDisplayStatement = False):    
         for e in range(epoch):
-            print('epoch :' + str(e))
-            tensor.set_shuffle(self.__all_index)
-            
-            for i in range(self.__x.shape[0] // self.__batch_size):
-                tensor.copy(self.__all_index, i * self.__batch_size, self.__batch_size, self.__select_index)
-                tensor.copy_row(self.__x, self.__select_index, self.__x_batch)
-                tensor.copy_row(self.__t, self.__select_index, self.__t_batch)
-                self.network.forward_line(self.__x_batch)
-                self.network.startBackward_line(self.__t_batch)
+            for i, x, y in self.data.normalRange():
+                if(isDisplayStatement):
+                    print('{0}/{1} epoch/epoch, {2}/{3} 1/epoch'.format(e, epoch, i, self.data.batch_count))
+                self.network.forward()
+                self.network.backward()
                 self.network.update(self.optimizer)
+    
+    def partilLearn(self, epoch, index, isDisplayStatement = False):
+        for e in range(epoch):
+            for value in self.data.partialRange(index, self.network.max_index):
+                left_loop = (epoch - e) * self.data.batch_count + value
+                yield left_loop
+                for value2 in self.network.partialForward(index):
+                    yield left_loop + value2
+                for value2 in self.network.partialBackward(index):
+                    yield left_loop + value2
+                for value2 in self.network.partialUpdate(self.optimizer, index):
+                    yield left_loop + value2  
     
     def findAccuracy(self):
         acc = tensor.Tensor([0],[1])
-        for i in range(self.__x.shape[0] // self.__batch_size):
-            tensor.copy(self.__all_index, i * self.__batch_size, self.__batch_size, self.__select_index)
-            tensor.copy_row(self.__x, self.__select_index, self.__x_batch)
-            tensor.copy_row(self.__t, self.__select_index, self.__t_batch)
-
-            result = self.network.forward_line(self.__x_batch)
-            for j in range(len(self.__t_batch.array)):
+        for i,x,y in self.data.normalRange():
+            self.network.setX(x)
+            result = self.network.forward()
+            for j in range(len(result.array)):
                 if(result.array[j] > 0.5):
-                    acc.array[0] += self.__t_batch.array[j]
-        acc.array[0] /= self.__t.shape[0]
+                    acc.array[0] += y.array[j]
+        acc.array[0] /= y.shape[0]
         return acc
-    
